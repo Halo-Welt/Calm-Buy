@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/chat/chat",
+    "pages/result/result",
+    "pages/list/list",
+    "pages/about/about"
+  ],
+  "window": {
+    "backgroundColor": "#F5F1E8",
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#F5F1E8",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Calm Buy"
+  },
+  "tabBar": {
+    "color": "#101619",
+    "selectedColor": "#1648D8",
+    "backgroundColor": "#FFFDF8",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/tabbar/home-default.png",
+        "selectedIconPath": "assets/tabbar/home-selected.png"
+      },
+      {
+        "pagePath": "pages/list/list",
+        "text": "记录",
+        "iconPath": "assets/tabbar/record-default.png",
+        "selectedIconPath": "assets/tabbar/record-selected.png"
+      },
+      {
+        "pagePath": "pages/about/about",
+        "text": "我的",
+        "iconPath": "assets/tabbar/profile-default.png",
+        "selectedIconPath": "assets/tabbar/profile-selected.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

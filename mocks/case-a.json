@@ -1,0 +1,16 @@
+{
+  "name": "劝停且无替代",
+  "productText": "很贵的未来眼镜",
+  "answers": [
+    "主要是聚会时戴，实际使用频率不确定",
+    "不会，立刻没那么想",
+    "主要是心里痒",
+    "不接受，我就想要这个"
+  ],
+  "reviewText": "",
+  "expected": {
+    "verdict": "stop",
+    "confidence": "medium",
+    "alternativesCount": 0
+  }
+}

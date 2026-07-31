@@ -1,0 +1,357 @@
+.verdict-art {
+  display: block;
+  width: 100%;
+  margin: 26rpx 0 0;
+}
+
+.verdict-rule {
+  width: 100%;
+  height: 14rpx;
+  margin-top: 20rpx;
+  background: #1648d8;
+  clip-path: polygon(0 25%, 100% 0, 98% 70%, 2% 100%);
+}
+
+.verdict-rule.stop {
+  background: #ff543c;
+}
+
+.verdict-rule.buy {
+  background: #ddff32;
+}
+
+.result-card {
+  margin-top: 38rpx;
+}
+
+.result-card > .section-label:first-child {
+  background: #101619;
+}
+
+.need-sentence {
+  padding: 24rpx;
+  border: 5rpx solid #101619;
+  border-radius: 20rpx;
+  background: #ddff32;
+  font-size: 35rpx;
+  font-weight: 1000;
+  letter-spacing: -2rpx;
+  line-height: 1.35;
+  -webkit-text-stroke: 1rpx #101619;
+}
+
+.need-tag {
+  display: inline-block;
+  margin: 18rpx 0 0 18rpx;
+  border: 3rpx solid #101619;
+  border-radius: 999rpx;
+  padding: 8rpx 16rpx;
+  background: #1648d8;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 1000;
+}
+
+.evidence-quote {
+  margin-top: 14rpx;
+  padding: 20rpx 22rpx;
+  border-left: 8rpx solid #1648d8;
+  background: #f5f1e8;
+  font-size: 27rpx;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.need-detail {
+  display: grid;
+  grid-template-columns: 96rpx 1fr;
+  gap: 16rpx;
+  margin-top: 14rpx;
+  padding: 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.need-detail text {
+  color: #1648d8;
+  font-weight: 1000;
+}
+
+.reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  margin-top: 16rpx;
+  padding: 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #fffdf8;
+  font-size: 27rpx;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.reason-mark {
+  display: grid;
+  flex: 0 0 42rpx;
+  width: 42rpx;
+  height: 42rpx;
+  place-items: center;
+  border-radius: 50%;
+  background: #1648d8;
+  color: #ffffff;
+  font-weight: 1000;
+}
+
+.experiment-card {
+  padding: 24rpx;
+  border: 5rpx solid #101619;
+  border-radius: 20rpx;
+  background: #ffe53b;
+  box-shadow: 6rpx 6rpx 0 #101619;
+}
+
+.experiment-title {
+  font-size: 31rpx;
+  font-weight: 1000;
+}
+
+.experiment-action {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.experiment-duration {
+  display: inline-block;
+  margin-top: 14rpx;
+  padding: 6rpx 14rpx;
+  border: 3rpx solid #101619;
+  border-radius: 999rpx;
+  background: #fffdf8;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.price-tag {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  padding: 22rpx 24rpx;
+  border: 5rpx solid #101619;
+  border-radius: 20rpx;
+  background: #ddff32;
+  box-shadow: 6rpx 6rpx 0 #101619;
+}
+
+.price-tag-label {
+  flex: 0 0 auto;
+  font-size: 24rpx;
+  font-weight: 1000;
+}
+
+.price-tag-value {
+  font-size: 40rpx;
+  font-weight: 1000;
+  letter-spacing: -2rpx;
+  -webkit-text-stroke: 1rpx #101619;
+}
+
+.reputation {
+  margin-top: 14rpx;
+  padding: 20rpx 22rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #fffdf8;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.watch-out {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  margin-top: 12rpx;
+  padding: 16rpx 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #ffe53b;
+  font-size: 26rpx;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.watch-out-mark {
+  display: grid;
+  flex: 0 0 38rpx;
+  width: 38rpx;
+  height: 38rpx;
+  place-items: center;
+  border-radius: 50%;
+  background: #101619;
+  color: #ffe53b;
+  font-size: 26rpx;
+  font-weight: 1000;
+}
+
+.alternative-price {
+  display: inline-block;
+  margin-top: 10rpx;
+  padding: 6rpx 14rpx;
+  border: 3rpx solid #101619;
+  border-radius: 999rpx;
+  background: #fffdf8;
+  font-size: 24rpx;
+  font-weight: 1000;
+}
+
+.source-item {
+  margin-top: 12rpx;
+  padding: 18rpx 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #fffdf8;
+}
+
+.source-title {
+  font-size: 25rpx;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.source-hint {
+  margin-top: 8rpx;
+  color: #1648d8;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.review-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+}
+
+.review-columns > view {
+  padding: 18rpx;
+  border: 4rpx solid #101619;
+  border-radius: 16rpx;
+}
+
+.review-columns > view:first-child {
+  background: #ffe53b;
+}
+
+.review-heading {
+  margin-bottom: 12rpx;
+  font-size: 25rpx;
+  font-weight: 1000;
+}
+
+.review-line {
+  margin-top: 8rpx;
+  color: #41423f;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.source-note {
+  margin-top: 18rpx;
+  color: #66675f;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.alternative {
+  margin-top: 14rpx;
+  padding: 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #f5f1e8;
+}
+
+.alternative:first-of-type {
+  background: #ddff32;
+}
+
+.alternative-title {
+  font-size: 28rpx;
+  font-weight: 1000;
+}
+
+.alternative-why {
+  margin-top: 8rpx;
+  color: #41423f;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.candidate {
+  margin-top: 14rpx;
+  padding: 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #ddff32;
+}
+
+.verification-note {
+  margin-top: 14rpx;
+  padding-top: 12rpx;
+  border-top: 3rpx solid #101619;
+  color: #5e605a;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.next-step {
+  padding: 22rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #fffdf8;
+  font-size: 29rpx;
+  font-weight: 1000;
+  line-height: 1.5;
+}
+
+.confidence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 26rpx;
+  padding: 20rpx;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #1648d8;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.confidence-value {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 52rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-disclaimer {
+  margin-top: 22rpx;
+  padding-top: 18rpx;
+  border-top: 3rpx dashed #101619;
+  color: #66675f;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.footer-actions {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20rpx;
+}

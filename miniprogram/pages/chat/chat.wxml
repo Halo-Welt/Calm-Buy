@@ -1,0 +1,76 @@
+<view class="page chat-page">
+  <view class="chat-header">
+    <view>
+      <view class="eyebrow">第一性原理拆解</view>
+      <view class="product-name">{{productText}}</view>
+    </view>
+    <view class="progress">{{progressText}}</view>
+  </view>
+
+  <view class="temperature">
+    <view class="temperature-fill" style="width: {{progressPercent}}%;"></view>
+  </view>
+
+  <scroll-view class="messages" scroll-y scroll-into-view="last-message">
+    <view
+      wx:for="{{messages}}"
+      wx:key="index"
+      class="message {{item.role}}"
+      id="{{index === messages.length - 1 && !loading ? 'last-message' : ''}}"
+    >{{item.content}}</view>
+    <view class="message assistant loading-message" id="last-message" wx:if="{{loading}}">
+      正在继续往下拆…
+    </view>
+  </scroll-view>
+
+  <view class="error-card" wx:if="{{errorMessage}}">
+    <view>{{errorMessage}}</view>
+    <view class="error-actions">
+      <button class="secondary-button compact-button" bindtap="retry">重试</button>
+      <button class="text-button compact-button" bindtap="continueBasic">基础判断</button>
+    </view>
+  </view>
+
+  <view class="composer" wx:if="{{!errorMessage}}">
+    <block wx:if="{{phase === 'clarify_need'}}">
+      <view class="chip-row" wx:if="{{options.length && !showTextInput}}">
+        <button
+          class="chip"
+          wx:for="{{options}}"
+          wx:for-index="optIndex"
+          wx:key="optIndex"
+          data-index="{{optIndex}}"
+          catchtap="answerOption"
+          disabled="{{loading}}"
+        >{{item}}</button>
+      </view>
+      <view class="text-composer" wx:if="{{showTextInput}}">
+        <textarea
+          class="field answer-field"
+          maxlength="500"
+          placeholder="补充一句真实情况…"
+          value="{{inputValue}}"
+          bindinput="onInput"
+          disabled="{{loading}}"
+          focus="{{textInputFocus}}"
+          adjust-position="{{true}}"
+          hold-keyboard="{{true}}"
+        />
+        <button class="primary-button" catchtap="submitText" disabled="{{loading}}">
+          {{loading ? '分析中…' : '提交回答'}}
+        </button>
+        <button
+          class="text-button"
+          catchtap="backToOptions"
+          disabled="{{loading}}"
+          wx:if="{{options.length}}"
+        >返回选项</button>
+      </view>
+    </block>
+
+    <view class="confirm-actions" wx:if="{{phase === 'confirm_need'}}">
+      <button class="primary-button" data-value="yes" bindtap="confirmNeed" disabled="{{loading}}">对，就是这个</button>
+      <button class="secondary-button" data-value="no" bindtap="confirmNeed" disabled="{{loading}}">不对，我补充</button>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,75 @@
+.list-title {
+  margin: 22rpx 0;
+  color: #1648d8;
+  font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 78rpx;
+  font-weight: 1000;
+  letter-spacing: -7rpx;
+  line-height: 0.9;
+  transform: skewX(-4deg);
+  -webkit-text-stroke: 3rpx #1648d8;
+  text-shadow: -1rpx 0 #1648d8, 1rpx 0 #1648d8, 0 -1rpx #1648d8, 0 1rpx #1648d8;
+}
+
+.list {
+  margin-top: 42rpx;
+}
+
+.list-item {
+  margin-bottom: 24rpx;
+  padding: 26rpx;
+  border: 5rpx solid #101619;
+  border-radius: 22rpx;
+  background: #fffdf8;
+  box-shadow: 7rpx 7rpx 0 #101619;
+}
+
+.list-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.item-date {
+  color: #1648d8;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.item-status {
+  padding: 6rpx 12rpx;
+  border: 3rpx solid #101619;
+  border-radius: 999rpx;
+  background: #ddff32;
+}
+
+.item-status.abandoned {
+  background: #ffe53b;
+}
+
+.item-status.still-want {
+  background: #ff543c;
+  color: #ffffff;
+}
+
+.item-name {
+  margin-top: 20rpx;
+  font-size: 34rpx;
+  font-weight: 1000;
+}
+
+.item-verdict {
+  margin-top: 12rpx;
+  color: #41423f;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.chip.danger {
+  background: #ff543c;
+  color: #ffffff;
+}

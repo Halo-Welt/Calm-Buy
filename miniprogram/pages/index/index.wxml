@@ -1,0 +1,59 @@
+<view class="page index-page">
+  <view class="brand-row">
+    <view class="brand-lockup">Calm Buy</view>
+    <view class="brand-meta">CALM BUY</view>
+  </view>
+
+  <view class="sticker">冲动<br/>暂停一下</view>
+  <image
+    class="display-art"
+    src="/assets/art/hero-dont-buy.jpg"
+    mode="widthFix"
+    aria-label="先别买"
+  />
+  <view class="marker-line"></view>
+
+  <view class="score-card">
+    <view class="card-tab">冷静倒计时 ▶</view>
+    <view class="timer {{hasCooldown ? '' : 'timer-idle'}}">{{timerText}}</view>
+    <view class="timer-caption">{{timerCaption}}</view>
+  </view>
+
+  <view
+    class="meter-card"
+    hover-class="meter-card-hover"
+    hover-stay-time="80"
+    bindtap="explainTemperature"
+  >
+    <view class="meter-title">
+      <text>冲动温度 ▶</text>
+      <text class="meter-score level-{{temperatureLevel}}">{{temperature}}°</text>
+    </view>
+    <view class="meter-track"><view class="meter-fill" style="width: {{meterWidth}}%;"></view></view>
+    <view class="meter-labels">
+      <text class="meter-hint">{{temperatureHint}}</text>
+      <text class="meter-why">为什么 ▸</text>
+    </view>
+  </view>
+
+  <view class="input-card">
+    <view class="card-tab">我在考虑买 ▶</view>
+    <input
+      class="field"
+      maxlength="120"
+      placeholder="例如：很贵的未来眼镜…"
+      value="{{productText}}"
+      bindinput="onInput"
+      confirm-type="go"
+      confirm-hold="{{false}}"
+      cursor-spacing="80"
+      bindconfirm="start"
+    />
+  </view>
+  <button
+    class="primary-button hero-button"
+    hover-class="hero-button-hover"
+    hover-stay-time="80"
+    bindtap="start"
+  >开始冷静 <text>➜</text></button>
+</view>

@@ -1,0 +1,134 @@
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding-bottom: 28rpx;
+}
+
+.chat-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: 20rpx;
+  border-bottom: 10rpx solid #1648d8;
+}
+
+.product-name {
+  max-width: 500rpx;
+  margin-top: 10rpx;
+  overflow: hidden;
+  font-size: 34rpx;
+  font-weight: 1000;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  max-width: 220rpx;
+  color: #1648d8;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 24rpx;
+  font-weight: 900;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.temperature {
+  height: 22rpx;
+  margin-top: 22rpx;
+  padding: 3rpx;
+  border: 4rpx solid #101619;
+  border-radius: 999rpx;
+}
+
+.temperature-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #1648d8;
+  transition: width 240ms ease;
+}
+
+.messages {
+  flex: 1;
+  box-sizing: border-box;
+  margin: 26rpx 0;
+}
+
+.message {
+  width: fit-content;
+  max-width: 82%;
+  box-sizing: border-box;
+  margin-bottom: 18rpx;
+  padding: 22rpx 25rpx;
+  border: 4rpx solid #101619;
+  border-radius: 22rpx;
+  background: #fffdf8;
+  box-shadow: 5rpx 5rpx 0 #101619;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.message.user {
+  margin-left: auto;
+  background: #ddff32;
+}
+
+.composer {
+  flex-shrink: 0;
+  padding-top: 22rpx;
+  border-top: 5rpx solid #101619;
+}
+
+/* textarea 是原生组件，真机不认 height: auto，会退回默认高度（约 300rpx），必须给定值 */
+.answer-field {
+  height: 176rpx;
+  margin-top: 0;
+  padding: 24rpx 28rpx;
+}
+
+.text-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.loading-message {
+  color: #1648d8;
+  font-weight: 900;
+}
+
+.error-card {
+  flex-shrink: 0;
+  padding: 24rpx;
+  border: 4rpx solid #101619;
+  border-radius: 22rpx;
+  background: #ffe53b;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.compact-button {
+  min-height: 72rpx;
+  margin: 0;
+  padding: 8rpx 20rpx;
+  font-size: 24rpx;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+
+.confirm-actions button {
+  margin-top: 0;
+}

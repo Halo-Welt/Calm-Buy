@@ -1,0 +1,71 @@
+.about-title {
+  color: #1648d8;
+  font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 72rpx;
+  transform: skewX(-4deg);
+  -webkit-text-stroke: 3rpx #1648d8;
+  text-shadow: -1rpx 0 #1648d8, 1rpx 0 #1648d8, 0 -1rpx #1648d8, 0 1rpx #1648d8;
+}
+
+.section-title {
+  margin-top: 56rpx;
+  font-size: 34rpx;
+  font-weight: 1000;
+}
+
+.principle-list {
+  margin-top: 20rpx;
+}
+
+.principle {
+  display: grid;
+  grid-template-columns: 92rpx 1fr;
+  gap: 22rpx;
+  margin-bottom: 18rpx;
+  padding: 24rpx;
+  border: 5rpx solid #101619;
+  border-radius: 22rpx;
+  background: #fffdf8;
+}
+
+.principle:nth-child(2) {
+  background: #ddff32;
+  transform: rotate(1deg);
+}
+
+.principle-mark {
+  color: #1648d8;
+  font-size: 24rpx;
+  font-weight: 1000;
+  letter-spacing: 1rpx;
+}
+
+.principle-title {
+  font-size: 29rpx;
+  font-weight: 1000;
+}
+
+.principle-copy {
+  margin-top: 9rpx;
+  color: #41423f;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.privacy {
+  margin-top: 20rpx;
+  padding: 28rpx;
+  border: 5rpx solid #101619;
+  border-radius: 22rpx;
+  background: #1648d8;
+  color: #ffffff;
+}
+
+.privacy .lead {
+  color: #ffffff;
+}
+
+.privacy .lead + .lead {
+  margin-top: 16rpx;
+}

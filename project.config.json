@@ -1,0 +1,22 @@
+{
+  "description": "Calm Buy 微信小程序 MVP",
+  "packOptions": {
+    "ignore": []
+  },
+  "setting": {
+    "bundle": false,
+    "es6": true,
+    "minified": true,
+    "postcss": true,
+    "urlCheck": false,
+    "minifyWXML": true
+  },
+  "compileType": "miniprogram",
+  "appid": "wx95c367e4f5146ac3",
+  "projectname": "Calm-Buy",
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "simulatorType": "wechat",
+  "condition": {},
+  "simulatorPluginLibVersion": {}
+}

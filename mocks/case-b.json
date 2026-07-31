@@ -1,0 +1,16 @@
+{
+  "name": "劝停当前并给替代",
+  "productText": "很贵的未来眼镜",
+  "answers": [
+    "每天晚上躺在床上看一部电影",
+    "会，需求没变",
+    "具体不方便",
+    "可以，解决问题就行"
+  ],
+  "reviewText": "沉浸感好，但设备比较重、会发热，内容也不算多。",
+  "expected": {
+    "verdict": "replace",
+    "confidence": "high",
+    "alternativesCount": 2
+  }
+}

@@ -1,0 +1,221 @@
+/* tabBar 是原生层，会盖住页面底部；这里预留出它和 home indicator 的高度 */
+.index-page {
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+}
+
+.brand-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.brand-lockup {
+  font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 40rpx;
+  font-weight: 1000;
+  letter-spacing: -4rpx;
+  -webkit-text-stroke: 1rpx #101619;
+}
+
+.brand-meta {
+  margin: 8rpx 0 0 16rpx;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.sticker {
+  display: inline-block;
+  margin-top: 22rpx;
+  padding: 14rpx 20rpx;
+  background: #ddff32;
+  box-shadow: 6rpx 6rpx 0 #101619;
+  font-size: 24rpx;
+  font-weight: 1000;
+  line-height: 1.05;
+  transform: rotate(-4deg);
+}
+
+.display-art {
+  display: block;
+  width: 100%;
+  margin: 18rpx 0 0;
+}
+
+.marker-line {
+  width: 100%;
+  height: 14rpx;
+  margin: 18rpx 0 18rpx;
+  background: #1648d8;
+  clip-path: polygon(0 20%, 100% 0, 98% 72%, 2% 100%);
+}
+
+.score-card,
+.meter-card,
+.input-card {
+  position: relative;
+  margin-top: 22rpx;
+  border: 5rpx solid #101619;
+  border-radius: 28rpx;
+  background: #fffdf8;
+}
+
+.score-card {
+  padding: 22rpx 24rpx 14rpx;
+  box-shadow: 10rpx 10rpx 0 #101619;
+}
+
+.card-tab {
+  position: absolute;
+  top: -24rpx;
+  left: 16rpx;
+  padding: 9rpx 22rpx;
+  border-radius: 999rpx;
+  background: #101619;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 1000;
+}
+
+.timer {
+  color: #1648d8;
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: 92rpx;
+  font-weight: 1000;
+  letter-spacing: -4rpx;
+  line-height: 0.95;
+  text-align: center;
+  transform: skewX(-5deg);
+  font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: 3rpx #1648d8;
+  text-shadow: -2rpx 0 #1648d8, 2rpx 0 #1648d8, 0 -2rpx #1648d8, 0 2rpx #1648d8;
+}
+
+.timer-idle {
+  color: #a9a29a;
+  -webkit-text-stroke-color: #a9a29a;
+  text-shadow: none;
+}
+
+.timer-caption {
+  margin-top: 8rpx;
+  overflow: hidden;
+  font-size: 22rpx;
+  font-weight: 900;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meter-card {
+  padding: 20rpx;
+}
+
+.meter-card-hover {
+  background: #f5f1e8;
+}
+
+.meter-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 24rpx;
+  font-weight: 1000;
+  -webkit-text-stroke: 1rpx #101619;
+  text-shadow: 1rpx 0 #101619, 0 1rpx #101619;
+}
+
+.meter-score {
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: 48rpx;
+  font-weight: 1000;
+  font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: 2rpx #101619;
+}
+
+.meter-track {
+  height: 34rpx;
+  margin-top: 10rpx;
+  padding: 5rpx;
+  border: 4rpx solid #101619;
+  border-radius: 999rpx;
+}
+
+.meter-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ddff32, #ffe53b 52%, #ff543c);
+  transition: width 280ms ease-out;
+}
+
+.meter-score.level-warm {
+  color: #f0810a;
+  -webkit-text-stroke-color: #f0810a;
+}
+
+.meter-score.level-hot {
+  color: #ff543c;
+  -webkit-text-stroke-color: #ff543c;
+}
+
+.meter-labels {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.meter-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meter-why {
+  flex: none;
+  color: #6d6862;
+}
+
+.input-card {
+  padding: 26rpx 16rpx 16rpx;
+}
+
+.input-card .field {
+  margin: 0;
+  border: 3rpx solid #101619;
+  border-radius: 18rpx;
+  background: #f5f1e8;
+}
+
+.hero-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40rpx;
+  margin-top: 20rpx;
+  min-height: 104rpx;
+  font-size: 38rpx;
+  font-style: italic;
+  letter-spacing: -3rpx;
+}
+
+.hero-button-hover {
+  box-shadow: 2rpx 2rpx 0 #101619;
+  transform: translate(6rpx, 6rpx);
+}
+
+.hero-button text {
+  display: grid;
+  width: 58rpx;
+  height: 58rpx;
+  place-items: center;
+  border-radius: 50%;
+  background: #ddff32;
+  color: #101619;
+  font-size: 34rpx;
+}
+

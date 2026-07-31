@@ -1,0 +1,121 @@
+<view class="page" wx:if="{{result}}">
+  <view class="eyebrow">第一性原理结论</view>
+  <image
+    class="verdict-art"
+    src="{{result.verdictArt}}"
+    mode="widthFix"
+    aria-label="{{result.verdictLabel}}"
+  />
+  <view class="verdict-rule {{result.verdict}}"></view>
+
+  <view class="receipt result-card">
+    <view class="section-label">你真正想要的是</view>
+    <view class="need-sentence">{{result.rootNeed || result.needSentence}}</view>
+    <view class="need-tag">{{result.primaryNeedLabel}}</view>
+
+    <view class="divider"></view>
+    <view class="section-label">你的原话</view>
+    <view class="evidence-quote" wx:for="{{result.evidenceQuotes}}" wx:key="*this">“{{item}}”</view>
+
+    <view class="divider"></view>
+    <view class="section-label">需求拆解</view>
+    <view class="need-detail" wx:if="{{result.needDecomposition.functional}}">
+      <text>功能</text>
+      <view>{{result.needDecomposition.functional}}</view>
+    </view>
+    <view class="need-detail" wx:if="{{result.needDecomposition.emotional}}">
+      <text>情绪</text>
+      <view>{{result.needDecomposition.emotional}}</view>
+    </view>
+    <view class="need-detail" wx:if="{{result.needDecomposition.social}}">
+      <text>社会</text>
+      <view>{{result.needDecomposition.social}}</view>
+    </view>
+
+    <view class="divider"></view>
+    <view class="section-label">为什么这样判</view>
+    <view class="reason" wx:for="{{result.reasons}}" wx:key="*this">
+      <text class="reason-mark">✓</text>
+      <text>{{item}}</text>
+    </view>
+
+    <block wx:if="{{result.hasMarketInfo}}">
+      <view class="divider"></view>
+      <view class="section-label">查到的行情</view>
+      <view class="price-tag" wx:if="{{result.marketSnapshot.priceRange}}">
+        <text class="price-tag-label">参考价</text>
+        <text class="price-tag-value">{{result.marketSnapshot.priceRange}}</text>
+      </view>
+      <view class="reputation" wx:if="{{result.marketSnapshot.reputation}}">{{result.marketSnapshot.reputation}}</view>
+      <view class="watch-out" wx:for="{{result.marketSnapshot.watchOuts}}" wx:key="*this">
+        <text class="watch-out-mark">!</text>
+        <text>{{item}}</text>
+      </view>
+    </block>
+
+    <block wx:if="{{result.minimumExperiment}}">
+      <view class="divider"></view>
+      <view class="section-label">最低成本验证</view>
+      <view class="experiment-card">
+        <view class="experiment-title">{{result.minimumExperiment.title}}</view>
+        <view class="experiment-action">{{result.minimumExperiment.action}}</view>
+        <view class="experiment-duration" wx:if="{{result.minimumExperiment.duration}}">{{result.minimumExperiment.duration}}</view>
+      </view>
+    </block>
+
+    <block wx:if="{{result.alternatives.length}}">
+      <view class="divider"></view>
+      <view class="section-label">不用买也能满足</view>
+      <view class="alternative" wx:for="{{result.alternatives}}" wx:key="title">
+        <view class="alternative-title">{{item.title}}</view>
+        <view class="alternative-why">{{item.why}}</view>
+      </view>
+    </block>
+
+    <block wx:if="{{result.candidateProducts.length}}">
+      <view class="divider"></view>
+      <view class="section-label">值得看的候选</view>
+      <view class="candidate" wx:for="{{result.candidateProducts}}" wx:key="title">
+        <view class="alternative-title">{{item.title}}</view>
+        <view class="alternative-price" wx:if="{{item.price}}">{{item.price}}</view>
+        <view class="alternative-why">{{item.why}}</view>
+        <view class="verification-note">{{item.verificationStatus}}</view>
+      </view>
+    </block>
+
+    <block wx:if="{{result.searchSources.length}}">
+      <view class="divider"></view>
+      <view class="section-label">信息来源</view>
+      <view
+        class="source-item"
+        wx:for="{{result.searchSources}}"
+        wx:key="url"
+        data-url="{{item.url}}"
+        bindtap="copySource"
+      >
+        <view class="source-title">{{item.title}}</view>
+        <view class="source-hint">点一下复制链接</view>
+      </view>
+    </block>
+
+    <view class="source-note">{{result.reviewSummary.source_note}}</view>
+
+    <view class="divider"></view>
+    <view class="section-label">下一步</view>
+    <view class="next-step">{{result.nextStep}}</view>
+
+    <view class="confidence">
+      <text>判断置信度</text>
+      <text class="confidence-value">{{result.confidenceLabel}}</text>
+    </view>
+
+    <view class="ai-disclaimer">以上判断由 AI 生成，仅供参考，不构成消费建议。价格、参数与商品信息请自行核对。</view>
+  </view>
+
+  <button class="primary-button" bindtap="saveToList">{{saved ? '已在冷静记录' : '放进冷静记录'}}</button>
+  <button class="secondary-button" bindtap="copySummary">复制结论</button>
+  <view class="footer-actions">
+    <button class="text-button" bindtap="restart">再拆一件</button>
+    <button class="text-button" bindtap="openList">查看记录</button>
+  </view>
+</view>

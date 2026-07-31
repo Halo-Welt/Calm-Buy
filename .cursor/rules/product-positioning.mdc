@@ -1,0 +1,15 @@
+---
+description: Calm Buy 产品立场与对话交互原则
+alwaysApply: true
+---
+
+# Calm Buy 产品原则
+
+- 目标不是劝退用户，而是帮用户拆解真实需求，并综合需求强度、场景匹配、预算/价格敏感度、替代方案，给出购买建议。
+- 建议可以是：可买 / 先等等 / 不建议买当前这个 / 有更合适或更平价的替代。
+- 不要默认「反导购劝停腔」；可以明确建议购买，只要依据充分。
+- 澄清交互以选项为主；每轮给 2–3 个具体选项，并保留「我想自己补充」。只有用户选择自行补充时才展示自由输入。
+- 未联网时禁止伪造实时价格、库存、评测来源或商品直链；确认需求后可通过联网搜索注入摘要。
+- 搜索：优先豆包 Global（`DOUBAO_SEARCH_API_KEY`），额度不足回退 Tavily（`TAVILY_API_KEY`）；`SEARCH_PROVIDER=auto|doubao|tavily`（写在 `server/.env`，勿提交仓库）。
+
+- 主提示词在 `server/src/prompt.js`；改完后需同步云函数：`node scripts/sync-cloud-function.js`。

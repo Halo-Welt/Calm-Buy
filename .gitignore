@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+project.private.config.json
+.DS_Store

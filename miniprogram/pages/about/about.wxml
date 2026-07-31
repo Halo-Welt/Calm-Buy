@@ -1,0 +1,36 @@
+<view class="page">
+  <view class="eyebrow">个人空间</view>
+  <view class="display about-title">我的</view>
+  <view class="lead">无需登录，不建立消费画像。</view>
+
+  <view class="section-title">产品原则</view>
+  <view class="principle-list">
+    <view class="principle">
+      <view class="principle-mark">需求</view>
+      <view>
+        <view class="principle-title">先问为什么，再看买什么</view>
+        <view class="principle-copy">没有确认真实需求前，不推荐任何商品。</view>
+      </view>
+    </view>
+    <view class="principle">
+      <view class="principle-mark">证据</view>
+      <view>
+        <view class="principle-title">不知道，就明确说不知道</view>
+        <view class="principle-copy">没有评测原文时，判断置信度不会超过“中”。</view>
+      </view>
+    </view>
+    <view class="principle">
+      <view class="principle-mark">克制</view>
+      <view>
+        <view class="principle-title">替代品不是默认答案</view>
+        <view class="principle-copy">只有需求足够清楚，而且存在更短路径时才给替代。</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title">隐私与数据</view>
+  <view class="privacy">
+    <view class="lead">分析内容会发送至服务端和 DeepSeek；服务端不保存正文。冷静记录只保存在当前设备。</view>
+    <view class="lead">追问与判断均由 AI 生成，仅供参考，不构成消费建议。价格与商品信息请自行核对。</view>
+  </view>
+</view>

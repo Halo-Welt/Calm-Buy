@@ -1,0 +1,16 @@
+{
+  "name": "低置信度",
+  "productText": "看起来很酷的小家电",
+  "answers": [
+    "还没想好",
+    "会，但没那么兴奋",
+    "两者都有",
+    "看情况"
+  ],
+  "rejected": true,
+  "expected": {
+    "verdict": "wait",
+    "confidence": "low",
+    "alternativesCount": 0
+  }
+}

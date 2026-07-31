@@ -1,0 +1,16 @@
+{
+  "name": "明确可以买",
+  "productText": "干湿分离拖把",
+  "answers": [
+    "租房卫生间每天洗完澡都拖不干净",
+    "会，需求没变",
+    "具体不方便",
+    "可以，解决问题就行"
+  ],
+  "reviewText": "多位使用者反馈吸水和干湿分离效果稳定，适合小卫生间。",
+  "expected": {
+    "verdict": "buy",
+    "confidence": "high",
+    "alternativesCount": 0
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "Calm Buy 页面索引配置",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

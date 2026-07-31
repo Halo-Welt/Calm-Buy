@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="eyebrow">48 小时后再看</view>
+  <view class="list-title">冷静清单</view>
+  <view class="lead">不是购物车。这里记录的是你没有立刻花掉的钱。</view>
+
+  <view class="empty" wx:if="{{!items.length}}">
+    <view>清单还是空的。</view>
+    <view>下一次上头时，先来拆一下。</view>
+    <button class="primary-button" bindtap="goHome">开始冷静</button>
+  </view>
+
+  <view class="list" wx:else>
+    <view class="list-item" wx:for="{{items}}" wx:key="id">
+      <view class="list-topline">
+        <text class="item-date">{{item.dateLabel}}</text>
+        <text class="item-status {{item.status}}">{{item.statusLabel}}</text>
+      </view>
+      <view class="item-name">{{item.productText}}</view>
+      <view class="item-verdict">{{item.verdictLabel}} · {{item.needSentence}}</view>
+      <view class="chip-row">
+        <button class="chip" data-id="{{item.id}}" data-status="abandoned" bindtap="updateStatus">已经不想要</button>
+        <button class="chip" data-id="{{item.id}}" data-status="still-want" bindtap="updateStatus">冷静后还想要</button>
+        <button class="chip danger" data-id="{{item.id}}" bindtap="remove">删除</button>
+      </view>
+    </view>
+  </view>
+</view>
