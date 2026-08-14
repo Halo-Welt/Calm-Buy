@@ -11,9 +11,10 @@
     "backgroundTextStyle": "dark",
     "navigationBarBackgroundColor": "#F5F1E8",
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "Calm Buy"
+    "navigationBarTitleText": "冷静购"
   },
   "tabBar": {
+    "custom": true,
     "color": "#101619",
     "selectedColor": "#1648D8",
     "backgroundColor": "#FFFDF8",

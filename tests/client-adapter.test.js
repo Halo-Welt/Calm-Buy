@@ -44,7 +44,43 @@ test('live 结果映射为当前结果页字段且标记未联网核验', () => 
   assert.equal(result.verdictLabel, '先验证')
   assert.equal(result.primaryNeedLabel, '场景功能')
   assert.equal(result.candidateProducts.length, 1)
-  assert.match(result.reviewSummary.source_note, /未联网核验/)
+  assert.match(result.reviewSummary.source_note, /没有可用联网结果|未联网核验/)
+})
+
+test('豆包搜索命中时结果页标明来源', () => {
+  const result = adaptResult({
+    verdict: 'buy',
+    confidence: 'high',
+    needSentence: '通勤时隔开地铁噪音',
+    primaryNeedId: 'utility',
+    matchScore: 'high',
+    rootNeed: '通勤时隔开地铁噪音',
+    needDecomposition: {
+      functional: '隔音',
+      emotional: '',
+      social: '',
+      constraints: [],
+      successCriterion: ''
+    },
+    evidenceQuotes: ['每天坐地铁'],
+    reasons: ['场景明确'],
+    marketSnapshot: { priceRange: '约 800–1500 元', reputation: '', watchOuts: [] },
+    minimumExperiment: null,
+    alternatives: [],
+    candidateProducts: [],
+    nextStep: '按预算下单',
+    cooldownHours: 0,
+    searchUsed: true,
+    searchProvider: 'doubao'
+  }, {
+    mode: 'live',
+    productText: '降噪耳机',
+    searchUsed: true,
+    searchProvider: 'doubao'
+  })
+
+  assert.equal(result.reviewSummary.source_note, '结论参考了豆包搜索的价格与口碑，具体成交价请自行核对')
+  assert.equal(result.searchSourceLabel, '信息来源 · 豆包搜索')
 })
 
 test('客户端 fallback 不给替代或商品候选', () => {

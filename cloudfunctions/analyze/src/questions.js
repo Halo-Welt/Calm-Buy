@@ -17,7 +17,7 @@ const TIER_PLANS = {
   },
   standard: {
     maxQuestions: 3,
-    minQuestionsBeforeConfirm: 2,
+    minQuestionsBeforeConfirm: 3,
     readinessThreshold: 0.6,
     minEvidence: 2,
     skipConfirm: false,
@@ -25,7 +25,7 @@ const TIER_PLANS = {
   },
   major: {
     maxQuestions: 5,
-    minQuestionsBeforeConfirm: 3,
+    minQuestionsBeforeConfirm: 4,
     readinessThreshold: 0.7,
     minEvidence: 2,
     skipConfirm: false,
@@ -47,31 +47,31 @@ const FALLBACK_QUESTIONS = {
   ],
   standard: [
     {
-      message: '你打算在什么场景下用它？',
-      options: ['经常会用到的固定场景', '偶尔用一下', '暂时说不好'],
-      label: '确认使用场景'
+      message: '抛开这件商品，你最想解决的具体麻烦是什么？',
+      options: ['现有的东西不好用', '想做一件现在做不到的事', '主要是想体验一下'],
+      label: '锁定真实需求'
     },
     {
-      message: '现在你是怎么应付这件事的，哪里最不顺手？',
-      options: ['有替代方案但不好用', '基本没有替代方案', '其实还能凑合'],
+      message: '这个问题一般什么时候会出现？',
+      options: ['几乎每天都会碰到', '一周几次', '偶尔才有'],
+      label: '确认发生场景'
+    },
+    {
+      message: '现在你是怎么对付的，最卡在哪一步？',
+      options: ['有办法但不好用', '基本没有办法', '其实还能凑合'],
       label: '找出真实缺口'
-    },
-    {
-      message: '预算上你更接近哪种想法？',
-      options: ['一步到位买好的', '够用就行', '想找更便宜的替代'],
-      label: '确认预算取向'
     }
   ],
   major: [
     {
-      message: '你希望它帮你解决的最主要的一件事是什么？',
-      options: ['替换现在不好用的东西', '开启一个新的用途', '暂时说不好'],
-      label: '锁定核心目标'
+      message: '抛开这件商品，你最想解决的具体麻烦是什么？',
+      options: ['替换现在不好用的东西', '想开始一件现在做不到的事', '暂时说不好'],
+      label: '锁定真实需求'
     },
     {
-      message: '大概多久会用到一次？',
-      options: ['几乎每天', '每周几次', '一个月都不一定用上'],
-      label: '确认使用频率'
+      message: '这个问题大概多久出现一次？',
+      options: ['几乎每天', '每周几次', '一个月都不一定碰到'],
+      label: '确认发生频率'
     },
     {
       message: '现在你用什么顶着，具体卡在哪一步？',
@@ -79,9 +79,9 @@ const FALLBACK_QUESTIONS = {
       label: '找出真实缺口'
     },
     {
-      message: '预算区间大概是多少？',
+      message: '预算上你更接近哪种想法？',
       options: ['已经想好上限', '还在比价', '价格不是主要顾虑'],
-      label: '确认预算区间'
+      label: '确认预算取向'
     },
     {
       message: '如果现在不买，最坏会怎样？',
@@ -98,6 +98,27 @@ function resolveTier(tier) {
   return DECISION_TIERS.includes(tier) ? tier : 'standard'
 }
 
+/** 决策量级本质上是价格问题。有真实报价时就别让模型靠商品名猜。 */
+function tierFromPrice(value) {
+  const price = Number(value)
+  if (!Number.isFinite(price) || price <= 0) return null
+  if (price < 100) return 'trivial'
+  if (price <= 3000) return 'standard'
+  return 'major'
+}
+
+/**
+ * 检索到的价格中位数优先于模型判断：模型只看得到商品名，
+ * 「未来眼镜」既可能是 99 块的玩具也可能是两万块的头显。
+ * 只在首轮定档，之后跟着 draft 走，避免中途改判导致提问轮数上限突变。
+ * 要求至少两个报价，单个游离数字不足以决定一次决策的量级。
+ */
+function anchoredTier(modelTier, searchEvidence) {
+  const anchor = searchEvidence?.priceAnchor
+  const anchored = anchor && anchor.count >= 2 ? tierFromPrice(anchor.median) : null
+  return anchored || resolveTier(modelTier)
+}
+
 function resolvePlan(tier, temperature = 0) {
   const base = TIER_PLANS[resolveTier(tier)]
   // 小额决策不加：泡面就算是凌晨第三次搜，也不值得多盘问一轮
@@ -110,7 +131,10 @@ function resolvePlan(tier, temperature = 0) {
 }
 
 function planForRequest(request = {}) {
-  return resolvePlan(request.draft?.decisionTier, request.impulse?.temperature)
+  return resolvePlan(
+    request.draft?.decisionTier || anchoredTier(null, request.searchEvidence),
+    request.impulse?.temperature
+  )
 }
 
 /** 本轮是否必须直接给最终建议：用户已确认，或小额决策问满了轮数 */
@@ -118,6 +142,24 @@ function isFinalRound(request = {}) {
   if (request.confirmation === true) return true
   const plan = planForRequest(request)
   return plan.skipConfirm && (request.questionCount || 0) >= plan.maxQuestions
+}
+
+const TRIVIAL_PRODUCT_RE = /泡面|方便面|饮料|矿泉水|可乐|奶茶|咖啡豆|面包|零食|辣条|薯片|饼干|糖果|口香糖|火腿肠|袜子|内裤|纸巾|抽纸|卫生巾|牙膏|牙刷|洗发水|沐浴露|洗衣液|垃圾袋|保鲜袋|一次性|数据线|充电线|笔芯|便利贴/
+
+function looksTrivialProduct(productText = '') {
+  return TRIVIAL_PRODUCT_RE.test(String(productText))
+}
+
+/**
+ * 需要调研时先搜再问：非 trivial 商品的第一轮、以及最终建议轮。
+ * 中间澄清轮不再搜，避免把额度耗在追问上。
+ */
+function shouldResearchNow(request = {}) {
+  if (isFinalRound(request)) return true
+  if ((request.questionCount || 0) > 0) return false
+  if (request.draft?.decisionTier === 'trivial') return false
+  if (looksTrivialProduct(request.productText)) return false
+  return Boolean(String(request.productText || '').trim())
 }
 
 function withSelfSupplement(options = []) {
@@ -138,12 +180,89 @@ function pickFollowUp(questionCount, tier) {
   }
 }
 
+/** rootNeed 如果只是在复述商品名，就还没拆到真实需求 */
+function isProductRestatement(rootNeed, productText) {
+  const need = String(rootNeed || '').trim()
+  const product = String(productText || '').trim()
+  if (!need || need.length < 6) return true
+  if (/待确认|购买目标|就是买|想买这|入手这/.test(need)) return true
+  const compactNeed = need.replace(/[\s，。、！!？?的了呢吗啊]/g, '')
+  const compactProduct = product.replace(/[\s，。、！!？?的了呢吗啊]/g, '')
+  if (compactProduct.length >= 2 && compactNeed.includes(compactProduct) && /^想?买|^购买|^入手|^拥有/.test(need)) {
+    return true
+  }
+  return false
+}
+
+function needDiscoveryComplete(draft = {}, productText = '', tier = 'standard') {
+  if (resolveTier(tier) === 'trivial') return true
+  const hasOutcome = Boolean(String(draft.desiredOutcome || draft.functionalNeed || '').trim())
+  const hasScene = Boolean(String(draft.scene || '').trim())
+  const hasGap = Boolean(String(draft.gap || draft.currentAlternative || '').trim())
+  return hasOutcome && hasScene && hasGap && !isProductRestatement(draft.rootNeed, productText)
+}
+
+function pickNeedFollowUp(draft = {}, productText = '', questionCount = 0, tier = 'standard') {
+  if (!String(draft.desiredOutcome || draft.functionalNeed || '').trim()
+    || isProductRestatement(draft.rootNeed, productText)) {
+    return {
+      message: '抛开这件商品，你最想解决的具体麻烦是什么？',
+      options: withSelfSupplement(['现有的东西不好用', '想做一件现在做不到的事', '主要是想体验一下']),
+      label: '锁定真实需求'
+    }
+  }
+  if (!String(draft.scene || '').trim()) {
+    return {
+      message: '这个问题一般什么时候会出现？',
+      options: withSelfSupplement(['几乎每天都会碰到', '一周几次', '偶尔才有']),
+      label: '确认发生场景'
+    }
+  }
+  if (!String(draft.gap || draft.currentAlternative || '').trim()) {
+    return {
+      message: '现在你是怎么对付的，最卡在哪一步？',
+      options: withSelfSupplement(['有办法但不好用', '基本没有办法', '其实还能凑合']),
+      label: '找出真实缺口'
+    }
+  }
+  const dimension = nextOpenDimension(draft)
+  if (dimension) {
+    return {
+      message: `在「${dimension}」上，你的实际要求接近哪种？`,
+      options: withSelfSupplement(['必须做到位', '够用就行', '其实没太在意']),
+      label: `确认${dimension}`
+    }
+  }
+  return pickFollowUp(questionCount, tier)
+}
+
+/** 三件套齐了以后，追问该瞄准这个品类真正决定买错买对的维度，而不是继续套通用模板 */
+function nextOpenDimension(draft = {}) {
+  const asked = new Set(
+    (Array.isArray(draft.askedDimensions) ? draft.askedDimensions : [])
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.trim())
+  )
+  return (Array.isArray(draft.keyDimensions) ? draft.keyDimensions : [])
+    .filter((item) => typeof item === 'string' && item.trim())
+    .map((item) => item.trim())
+    .find((item) => !asked.has(item)) || ''
+}
+
 module.exports = {
   TIER_GUIDE,
+  anchoredTier,
   isFinalRound,
+  looksTrivialProduct,
+  isProductRestatement,
+  needDiscoveryComplete,
+  nextOpenDimension,
   pickFollowUp,
+  pickNeedFollowUp,
   planForRequest,
   resolvePlan,
   resolveTier,
+  shouldResearchNow,
+  tierFromPrice,
   withSelfSupplement
 }

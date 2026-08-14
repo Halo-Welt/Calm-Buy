@@ -1,0 +1,25 @@
+<view class="tab-bar">
+  <view
+    class="slider {{animate ? 'is-animating' : ''}}"
+    style="transform: translate3d({{sliderIndex * 100}}%, 0, 0);"
+  >
+    <view class="pill"></view>
+  </view>
+  <view
+    wx:for="{{list}}"
+    wx:key="pagePath"
+    class="tab {{selected === index ? 'tab-selected' : ''}}"
+    data-path="{{item.pagePath}}"
+    data-index="{{index}}"
+    hover-class="tab-hover"
+    hover-stay-time="80"
+    bindtap="switchTab"
+  >
+    <view class="tab-inner">
+      <view class="icon-wrap">
+        <image class="icon" src="{{item.iconPath}}" mode="aspectFit" />
+      </view>
+      <view class="label">{{item.text}}</view>
+    </view>
+  </view>
+</view>

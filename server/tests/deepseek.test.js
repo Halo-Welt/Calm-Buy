@@ -54,4 +54,6 @@ test('DeepSeek 客户端使用服务端 Key、当前模型与 JSON Output', asyn
   assert.equal(received.authorization, 'Bearer test-key')
   assert.equal(received.body.model, 'deepseek-v4-flash')
   assert.deepEqual(received.body.response_format, { type: 'json_object' })
+  assert.deepEqual(received.body.thinking, { type: 'disabled' })
+  assert.equal(received.body.max_tokens, 1400)
 })

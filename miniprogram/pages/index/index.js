@@ -1,8 +1,21 @@
 const { collectSignals, findActiveCooldown, recordInput } = require('../../utils/impulse')
+const { enableShareMenu, shareAppMessage, shareTimeline } = require('../../utils/share')
+const { syncTabBar } = require('../../utils/tabbar')
 
 const IMPULSE_KEY = 'calm_buy_current_impulse_v1'
 const IDLE_TIMER = '--:--:--'
 const IDLE_CAPTION = '暂无待冷静的东西'
+const PROMPT_CASES = [
+  'VR眼镜，想用来床上看电影',
+  '限量联名球鞋，就怕错过没了',
+  '新出的iPhone',
+  '同事推荐我买的降噪耳机',
+  '直播间秒杀的美容仪'
+]
+const TYPE_MS = 70
+const HOLD_MS = 1800
+const DELETE_MS = 36
+const GAP_MS = 420
 
 function pad(value) {
   return String(value).padStart(2, '0')
@@ -16,6 +29,48 @@ function formatCountdown(remainingMs) {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
 }
 
+const PAPER_RGB = [255, 253, 248]
+const COLD_RGB = [22, 72, 216]
+const COLOR_STOPS = [
+  [1, [255, 186, 56]],
+  [55, [255, 96, 42]],
+  [100, [255, 58, 48]],
+  [140, [196, 16, 92]]
+]
+
+function mixRgb(from, to, t) {
+  return from.map((value, index) => Math.round(value + (to[index] - value) * t))
+}
+
+function rgbCss(rgb) {
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
+}
+
+function colorAt(temp) {
+  const value = Math.max(0, Number(temp) || 0)
+  if (value <= 0) return COLD_RGB
+  if (value <= COLOR_STOPS[0][0]) return COLOR_STOPS[0][1]
+  const last = COLOR_STOPS[COLOR_STOPS.length - 1]
+  if (value >= last[0]) return last[1]
+  for (let i = 1; i < COLOR_STOPS.length; i += 1) {
+    if (value <= COLOR_STOPS[i][0]) {
+      const [min, from] = COLOR_STOPS[i - 1]
+      const [max, to] = COLOR_STOPS[i]
+      return mixRgb(from, to, (value - min) / (max - min))
+    }
+  }
+  return last[1]
+}
+
+function temperaturePalette(temp) {
+  const rgb = colorAt(temp)
+  const overheat = temp > 100
+  return {
+    thermoColor: rgbCss(rgb),
+    cardColor: rgbCss(mixRgb(rgb, PAPER_RGB, overheat ? 0.78 : 0.86))
+  }
+}
+
 Page({
   data: {
     productText: '',
@@ -26,11 +81,17 @@ Page({
     meterWidth: 0,
     temperatureLevel: 'calm',
     temperatureHint: '没发现冲动信号',
+    thermoColor: 'rgb(22, 72, 216)',
+    cardColor: 'rgb(222, 228, 244)',
+    overheat: false,
     factors: [],
-    showConsent: false
+    showConsent: false,
+    placeholderText: ''
   },
 
   onShow() {
+    syncTabBar(this, 0)
+    enableShareMenu()
     // 遮罩盖不住原生 tabBar，用户可以带着弹窗切页，回来时不该看到残留
     if (this.data.showConsent) this.setData({ showConsent: false })
     this.clearTimers()
@@ -38,6 +99,7 @@ Page({
     this.tickCountdown()
     this.refreshTemperature()
     this._countdownTimer = setInterval(() => this.tickCountdown(), 1000)
+    this.startTypewriter()
   },
 
   onHide() {
@@ -57,6 +119,56 @@ Page({
       clearTimeout(this._impulseTimer)
       this._impulseTimer = null
     }
+    this.stopTypewriter()
+  },
+
+  startTypewriter() {
+    this.stopTypewriter()
+    this._typeCaseIndex = 0
+    this._typeCharIndex = 0
+    this._typePhase = 'typing'
+    this.tickTypewriter()
+  },
+
+  stopTypewriter() {
+    if (this._typewriterTimer) {
+      clearTimeout(this._typewriterTimer)
+      this._typewriterTimer = null
+    }
+  },
+
+  setPlaceholder(example) {
+    if (this.data.productText) return
+    const placeholderText = example
+    if (placeholderText === this.data.placeholderText) return
+    this.setData({ placeholderText })
+  },
+
+  tickTypewriter() {
+    const text = PROMPT_CASES[this._typeCaseIndex]
+    let delay = TYPE_MS
+
+    if (this._typePhase === 'typing') {
+      this._typeCharIndex += 1
+      this.setPlaceholder(text.slice(0, this._typeCharIndex))
+      if (this._typeCharIndex >= text.length) {
+        this._typePhase = 'holding'
+        delay = HOLD_MS
+      }
+    } else if (this._typePhase === 'holding') {
+      this._typePhase = 'deleting'
+      delay = DELETE_MS
+    } else {
+      this._typeCharIndex -= 1
+      this.setPlaceholder(text.slice(0, Math.max(this._typeCharIndex, 0)))
+      if (this._typeCharIndex <= 0) {
+        this._typePhase = 'typing'
+        this._typeCaseIndex = (this._typeCaseIndex + 1) % PROMPT_CASES.length
+        delay = GAP_MS
+      }
+    }
+
+    this._typewriterTimer = setTimeout(() => this.tickTypewriter(), delay)
   },
 
   /** 读一次 calmList 就够了：每秒去翻本机存储会把逻辑线程拖住，点击会跟着失灵 */
@@ -82,9 +194,11 @@ Page({
     if (temperature === this.data.temperature && hint === this.data.temperatureHint) return
     this.setData({
       temperature,
-      meterWidth: temperature,
+      meterWidth: Math.min(100, temperature),
       temperatureLevel: level,
       temperatureHint: hint,
+      overheat: temperature > 100,
+      ...temperaturePalette(temperature),
       factors
     })
   },
@@ -101,7 +215,7 @@ Page({
     wx.showModal({
       title: `冲动温度 ${temperature}°`,
       content: factors.length
-        ? factors.map((item) => `+${item.points}　${item.label}`).join('\n')
+        ? `${temperature > 100 ? '已经超过 100°，温度计溢出来了。\n\n' : ''}${factors.map((item) => `+${item.points}　${item.label}`).join('\n')}`
         : '没有发现冲动信号：不是深夜，这件东西你是第一次查，最近也没有连着想买别的。\n\n温度只看这些本机记录，不看你打了多少字。',
       showCancel: false,
       confirmText: '知道了'
@@ -174,5 +288,8 @@ Page({
         })
       }
     })
-  }
+  },
+
+  onShareAppMessage: shareAppMessage,
+  onShareTimeline: shareTimeline
 })

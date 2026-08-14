@@ -1,14 +1,16 @@
 const http = require('node:http')
 const { analyzeRequestSchema } = require('./schema')
 const { buildMessages } = require('./prompt')
-const { callDeepSeek } = require('./deepseek')
+const { callDeepSeek, llmBudget } = require('./deepseek')
 const { applyPolicy } = require('./policy')
 const { buildFallbackResponse } = require('./fallback')
-const { isFinalRound } = require('./questions')
+const { isFinalRound, shouldResearchNow } = require('./questions')
 const {
   annotateSearchMeta,
   emptySearchEvidence,
+  isDoubaoConfigured,
   isSearchConfigured,
+  isTavilyConfigured,
   researchProduct
 } = require('./search')
 
@@ -78,18 +80,32 @@ function pruneSearchCache(now) {
 }
 
 /**
- * 第一轮就把检索发出去，后面几轮直接复用：提问阶段能带上真实行情，
- * 最终轮也不用现场干等一次搜索。
+ * 第一轮就把检索发出去并等待结果，后面几轮直接复用：
+ * 提问阶段能带上真实行情，最终轮若需求变了再补搜一次。
  */
-function getOrStartResearch(sessionId, productText) {
+function getOrStartResearch(sessionId, productText, draft = {}, round = 'first') {
   const now = Date.now()
+  const needKey = String(draft.rootNeed || draft.desiredOutcome || '')
   const cached = searchCache.get(sessionId)
-  if (cached && cached.productText === productText && now - cached.createdAt < SEARCH_CACHE_TTL_MS) {
+  if (
+    cached
+    && cached.productText === productText
+    && cached.needKey === needKey
+    && cached.round === round
+    && now - cached.createdAt < SEARCH_CACHE_TTL_MS
+  ) {
     return cached
   }
 
-  const entry = { createdAt: now, productText, settled: false, value: emptySearchEvidence() }
-  entry.promise = researchProduct(productText)
+  const entry = {
+    createdAt: now,
+    productText,
+    needKey,
+    round,
+    settled: false,
+    value: emptySearchEvidence()
+  }
+  entry.promise = researchProduct(productText, draft, { round })
     .then((value) => {
       entry.value = value
       return value
@@ -109,20 +125,25 @@ function getOrStartResearch(sessionId, productText) {
 }
 
 async function attachSearchEvidence(requestData) {
-  const entry = getOrStartResearch(requestData.sessionId, requestData.productText)
-
-  if (isFinalRound(requestData)) {
-    await entry.promise
-    return { ...requestData, searchEvidence: entry.value }
+  if (!isSearchConfigured() || !shouldResearchNow(requestData)) {
+    return { ...requestData, searchEvidence: emptySearchEvidence() }
   }
 
-  return { ...requestData, searchEvidence: entry.settled ? entry.value : emptySearchEvidence() }
+  const entry = getOrStartResearch(
+    requestData.sessionId,
+    requestData.productText,
+    requestData.draft,
+    isFinalRound(requestData) ? 'final' : 'first'
+  )
+  await entry.promise
+  return { ...requestData, searchEvidence: entry.value }
 }
 
 async function analyze(requestData) {
   const enriched = await attachSearchEvidence(requestData)
   const messages = buildMessages(enriched)
-  let output = await callDeepSeek(messages)
+  const budget = llmBudget(isFinalRound(requestData))
+  let output = await callDeepSeek(messages, budget)
 
   try {
     const result = applyPolicy(output, enriched)
@@ -134,7 +155,7 @@ async function analyze(requestData) {
         role: 'system',
         content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
       }
-    ])
+    ], budget)
     const result = applyPolicy(output, enriched)
     return annotateSearchMeta(result, enriched.searchEvidence)
   }
@@ -154,7 +175,9 @@ const server = http.createServer(async (request, response) => {
       ok: true,
       deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
       searchEnabled: isSearchConfigured(),
-      searchProvider: isSearchConfigured() ? (process.env.SEARCH_PROVIDER || 'auto') : null
+      searchProvider: process.env.SEARCH_PROVIDER || 'auto',
+      doubaoConfigured: isDoubaoConfigured(),
+      tavilyConfigured: isTavilyConfigured()
     })
     return
   }
@@ -200,6 +223,7 @@ const server = http.createServer(async (request, response) => {
         phase,
         mode: 'live',
         searchUsed: Boolean(result.searchUsed),
+        searchProvider: result.searchProvider || null,
         durationMs: Date.now() - startedAt
       }))
       sendJson(response, 200, { ...result, mode: 'live', error: null })

@@ -13,6 +13,10 @@ const draftSchema = z.object({
   productName: z.string().max(200).default(''),
   decisionTier: z.enum(DECISION_TIERS).nullable().default(null),
   tierReason: z.string().max(200).default(''),
+  /** 模型识别出的品类，以及这个品类真正决定买错买对的维度；首轮生成，后续轮复用 */
+  categoryLabel: z.string().max(60).default(''),
+  keyDimensions: z.array(z.string().trim().min(1).max(30)).max(4).default([]),
+  askedDimensions: z.array(z.string().trim().min(1).max(30)).max(6).default([]),
   desiredOutcome: z.string().max(500).default(''),
   scene: z.string().max(500).default(''),
   frequency: z.string().max(200).default(''),
@@ -103,7 +107,7 @@ const analyzeRequestSchema = z.object({
 })
 
 const analyzeResponseSchema = z.object({
-  assistantMessage: z.string().trim().min(1).max(1000),
+  assistantMessage: z.string().trim().min(1).max(1400),
   phase: z.enum(PHASES),
   inputType: z.enum(['text', 'choice', 'none']),
   options: z.array(z.string().trim().min(1).max(100)).max(5).default([]),

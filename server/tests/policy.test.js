@@ -127,6 +127,25 @@ test('有联网证据时保留价格、链接并允许高置信度', () => {
   assert.equal(result.result.marketSnapshot.priceRange, '约 3000 元')
 })
 
+test('模型没给候选时，用检索到的电商链接补上', () => {
+  const output = modelOutput()
+  output.result.candidateProducts = []
+  const result = applyPolicy(output, {
+    ...request(),
+    searchEvidence: {
+      enabled: true,
+      items: [
+        { title: '京东小冰箱', url: 'https://item.jd.com/123.html', content: '宿舍款约 400 元' },
+        { title: '淘宝便携冰箱', url: 'https://item.taobao.com/item.htm?id=1', content: '租房常用' }
+      ],
+      summary: '宿舍款约 400 元'
+    }
+  })
+  assert.ok(result.result.candidateProducts.length >= 2)
+  assert.equal(result.result.candidateProducts[0].url, 'https://item.jd.com/123.html')
+  assert.equal(result.result.candidateProducts[1].url, 'https://item.taobao.com/item.htm?id=1')
+})
+
 test('大额决策里焦虑驱动的 buy 降级为先验证', () => {
   const output = modelOutput()
   output.result.primaryNeedId = 'anxiety'
@@ -257,6 +276,39 @@ test('冲动温度高时中等决策多留一轮追问', () => {
   assert.equal(hot.progress.total, 4)
 })
 
+test('中等决策未拆清真实需求时不能提前确认购买目标', () => {
+  const output = modelOutput({
+    phase: 'confirm_need',
+    assistantMessage: '所以你是想买降噪耳机，对吗？',
+    result: null
+  })
+  output.draft.decisionTier = 'standard'
+  output.draft.rootNeed = '买一副降噪耳机'
+  output.draft.desiredOutcome = ''
+  output.draft.scene = ''
+  output.draft.gap = ''
+  output.draft.readiness = 0.95
+  output.draft.evidenceQuotes = ['通勤用', '预算一千']
+
+  const result = applyPolicy(output, request({
+    productText: '降噪耳机',
+    phase: 'clarify_need',
+    confirmation: null,
+    questionCount: 2,
+    draft: { decisionTier: 'standard' },
+    messages: [
+      { role: 'assistant', content: '你想买哪一款？' },
+      { role: 'user', content: '索尼的' },
+      { role: 'assistant', content: '预算多少？' },
+      { role: 'user', content: '一千左右' }
+    ]
+  }))
+
+  assert.equal(result.phase, 'clarify_need')
+  assert.equal(result.result, null)
+  assert.match(result.assistantMessage, /麻烦|什么时候|对付/)
+})
+
 test('冲动温度高不影响小额决策的轮数', () => {
   const messages = buildMessages(request({
     productText: '一箱泡面',
@@ -298,6 +350,152 @@ test('行为信号进入 prompt，但只作为状态描述且不否定合理购�
 test('无行为信号时 prompt 不带温度段落', () => {
   const messages = buildMessages(request())
   assert.doesNotMatch(messages[0].content, /冲动温度/)
+})
+
+test('模型只回传 draftPatch 时，已确认的字段不丢', () => {
+  const output = modelOutput()
+  delete output.draft
+  output.draftPatch = { rootNeed: '躺着看完一整部电影', readiness: 0.9 }
+
+  const result = applyPolicy(output, request({
+    draft: {
+      decisionTier: 'major',
+      desiredOutcome: '躺着看大屏',
+      scene: '每天睡前',
+      gap: '手机屏太小',
+      evidenceQuotes: ['每天躺在床上看电影', '用手机，但屏幕太小'],
+      readiness: 0.7
+    }
+  }))
+
+  assert.equal(result.draft.rootNeed, '躺着看完一整部电影')
+  assert.equal(result.draft.desiredOutcome, '躺着看大屏')
+  assert.equal(result.draft.scene, '每天睡前')
+  assert.equal(result.draft.readiness, 0.9)
+})
+
+test('模型把已确认字段写成空串时不覆盖上一轮的草稿', () => {
+  const output = modelOutput()
+  output.draft.scene = ''
+  output.draft.evidenceQuotes = []
+
+  const result = applyPolicy(output, request({
+    draft: {
+      decisionTier: 'major',
+      scene: '每天睡前',
+      evidenceQuotes: ['每天躺在床上看电影']
+    }
+  }))
+
+  assert.equal(result.draft.scene, '每天睡前')
+  assert.deepEqual(result.draft.evidenceQuotes, ['每天躺在床上看电影'])
+})
+
+test('模型漏读价格时用服务端抽出的锚点补上', () => {
+  const output = modelOutput()
+  output.result.marketSnapshot.priceRange = null
+
+  const result = applyPolicy(output, {
+    ...request(),
+    searchEvidence: {
+      enabled: true,
+      items: [{ title: '京东', url: 'https://item.jd.com/1.html', content: '售价 1999 元' }],
+      priceAnchor: { text: '约 1999–2199 元', count: 2, median: 2099 },
+      summary: '售价 1999 元'
+    }
+  })
+
+  assert.equal(result.result.marketSnapshot.priceRange, '约 1999–2199 元')
+})
+
+test('首轮没锁定量级时，检索价格决定提问轮数', () => {
+  const output = modelOutput({
+    phase: 'clarify_need',
+    assistantMessage: '你打算怎么用它？',
+    result: null
+  })
+  output.draft.decisionTier = 'trivial'
+
+  const result = applyPolicy(output, {
+    ...request({
+      productText: '很贵的未来眼镜',
+      phase: 'clarify_need',
+      questionCount: 0,
+      confirmation: null,
+      draft: {},
+      messages: [{ role: 'user', content: '我想买：很贵的未来眼镜' }]
+    }),
+    searchEvidence: {
+      enabled: true,
+      items: [{ title: '京东', url: 'https://item.jd.com/1.html', content: '售价 19800 元' }],
+      priceAnchor: { text: '约 1.98 万元', count: 3, median: 19800 },
+      summary: '售价 19800 元'
+    }
+  })
+
+  assert.equal(result.draft.decisionTier, 'major')
+  assert.equal(result.progress.total, 5)
+})
+
+test('提示词按检索到的报价直接判定量级，不让模型猜', () => {
+  const messages = buildMessages({
+    ...request({
+      productText: '很贵的未来眼镜',
+      phase: 'clarify_need',
+      questionCount: 0,
+      confirmation: null,
+      draft: {},
+      messages: [{ role: 'user', content: '我想买：很贵的未来眼镜' }]
+    }),
+    searchEvidence: {
+      enabled: true,
+      items: [{ title: '京东', url: 'https://item.jd.com/1.html', content: '售价 19800 元' }],
+      priceAnchor: { text: '约 1.98 万元', count: 3, median: 19800 },
+      summary: '售价 19800 元'
+    }
+  })
+
+  assert.match(messages[0].content, /真实报价是 约 1\.98 万元/)
+  assert.match(messages[0].content, /decisionTier 必须写 major/)
+  assert.match(messages[0].content, /最多提问 5 轮/)
+})
+
+test('首轮要求模型给出品类专属维度，后续轮回灌并指定下一个要问的维度', () => {
+  const first = buildMessages(request({
+    questionCount: 0,
+    confirmation: null,
+    phase: 'clarify_need',
+    draft: {}
+  }))
+  assert.match(first[0].content, /keyDimensions/)
+  assert.match(first[0].content, /不要写「性价比」/)
+
+  const later = buildMessages(request({
+    questionCount: 1,
+    confirmation: null,
+    phase: 'clarify_need',
+    draft: {
+      decisionTier: 'major',
+      categoryLabel: '头戴显示设备',
+      keyDimensions: ['佩戴时长', '清晰度', '预算上限'],
+      askedDimensions: ['佩戴时长']
+    }
+  }))
+  assert.match(later[0].content, /关键维度：佩戴时长、清晰度、预算上限/)
+  assert.match(later[0].content, /优先问「清晰度」/)
+})
+
+test('提问规则带好坏对照示范，且格式要求只出现一次', () => {
+  const content = buildMessages(request({
+    questionCount: 1,
+    confirmation: null,
+    phase: 'clarify_need',
+    draft: { decisionTier: 'standard' }
+  }))[0].content
+
+  assert.match(content, /在确认商品，没有在拆需求/)
+  assert.match(content, /通用模板，换成任何商品都成立/)
+  assert.equal((content.match(/第一段 ≤ 24 字/g) || []).length, 1)
 })
 
 test('非法超长输入被请求 schema 拒绝', () => {

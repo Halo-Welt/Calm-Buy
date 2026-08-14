@@ -1,4 +1,13 @@
 const { VERDICT_ART } = require('../../utils/resultAdapter')
+const { enableShareMenu, shareAppMessage, shareTimeline } = require('../../utils/share')
+
+function findStoredResult(options = {}) {
+  if (options.id) {
+    const fromList = (wx.getStorageSync('calmList') || []).find((item) => item.id === options.id)
+    if (fromList) return fromList
+  }
+  return getApp().globalData.lastResult || wx.getStorageSync('lastResult') || null
+}
 
 Page({
   data: {
@@ -6,8 +15,8 @@ Page({
     saved: false
   },
 
-  onLoad() {
-    const storedResult = getApp().globalData.lastResult || wx.getStorageSync('lastResult')
+  onLoad(options) {
+    const storedResult = findStoredResult(options)
     if (!storedResult) {
       wx.switchTab({ url: '/pages/index/index' })
       return
@@ -25,9 +34,12 @@ Page({
         constraints: [],
         successCriterion: ''
       },
+      alternatives: storedResult.alternatives || [],
       minimumExperiment: storedResult.minimumExperiment || null,
       candidateProducts: storedResult.candidateProducts || [],
       searchSources: storedResult.searchSources || [],
+      searchProvider: storedResult.searchProvider || '',
+      searchSourceLabel: storedResult.searchSourceLabel || '信息来源',
       reviewSummary: storedResult.reviewSummary || {
         source_note: '历史基础判断；未联网核验'
       }
@@ -37,6 +49,10 @@ Page({
       result,
       saved: calmList.some((item) => item.id === result.id)
     })
+  },
+
+  onShow() {
+    enableShareMenu()
   },
 
   copySummary() {
@@ -99,5 +115,8 @@ Page({
 
   openList() {
     wx.switchTab({ url: '/pages/list/list' })
-  }
+  },
+
+  onShareAppMessage: shareAppMessage,
+  onShareTimeline: shareTimeline
 })

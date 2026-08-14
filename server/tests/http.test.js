@@ -3,13 +3,27 @@ const assert = require('node:assert/strict')
 const { server } = require('../src/index')
 
 test('无 Key 时 HTTP 接口返回可渲染 fallback，而不是白屏错误', async (context) => {
-  const previousKey = process.env.DEEPSEEK_API_KEY
+  const previous = {
+    key: process.env.DEEPSEEK_API_KEY,
+    doubao: process.env.DOUBAO_SEARCH_API_KEY,
+    volc: process.env.VOLC_SEARCH_API_KEY,
+    tavily: process.env.TAVILY_API_KEY,
+    search: process.env.SEARCH_API_KEY
+  }
   delete process.env.DEEPSEEK_API_KEY
+  delete process.env.DOUBAO_SEARCH_API_KEY
+  delete process.env.VOLC_SEARCH_API_KEY
+  delete process.env.TAVILY_API_KEY
+  delete process.env.SEARCH_API_KEY
 
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   context.after(async () => {
     await new Promise((resolve) => server.close(resolve))
-    if (previousKey) process.env.DEEPSEEK_API_KEY = previousKey
+    if (previous.key) process.env.DEEPSEEK_API_KEY = previous.key
+    if (previous.doubao) process.env.DOUBAO_SEARCH_API_KEY = previous.doubao
+    if (previous.volc) process.env.VOLC_SEARCH_API_KEY = previous.volc
+    if (previous.tavily) process.env.TAVILY_API_KEY = previous.tavily
+    if (previous.search) process.env.SEARCH_API_KEY = previous.search
   })
 
   const address = server.address()

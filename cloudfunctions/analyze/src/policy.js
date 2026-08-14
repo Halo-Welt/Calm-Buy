@@ -1,11 +1,15 @@
 const { NEED_IDS, analyzeResponseSchema } = require('./schema')
 const {
+  anchoredTier,
   isFinalRound,
+  needDiscoveryComplete,
   pickFollowUp,
+  pickNeedFollowUp,
   resolvePlan,
   resolveTier,
   withSelfSupplement
 } = require('./questions')
+const { platformFromUrl } = require('./search')
 
 /** 只有在“更贵、更长期、更难退”的决策上，才对非功能性动机保持警惕 */
 const CAUTIOUS_NEEDS = new Set(['anxiety', 'identity', 'belong'])
@@ -29,8 +33,15 @@ function looksLikeQuestion(text) {
   return /[？?]/.test(text) || /吗$|呢$|么$|嘛$/.test(text.trim())
 }
 
+function looksLikeNeedQuestion(text) {
+  if (!looksLikeQuestion(text)) return false
+  return !/想买|就是买|购买目标|下手吗|要下单吗|哪一款|什么颜色|什么型号/.test(text)
+}
+
+/** 量级一旦落进 draft 就锁定；首轮还没锁定时，检索到的真实报价优先于模型的猜测 */
 function readTier(response, request) {
-  return resolveTier(response?.draft?.decisionTier || request?.draft?.decisionTier)
+  if (request?.draft?.decisionTier) return resolveTier(request.draft.decisionTier)
+  return anchoredTier(response?.draft?.decisionTier, request?.searchEvidence)
 }
 
 function readTemperature(request) {
@@ -43,10 +54,10 @@ function planFor(response, request) {
 
 function buildConfirmMessage(draft, productText) {
   const rootNeed = draft?.rootNeed?.trim().replace(/[。.！!？?；;，,\s]+$/, '')
-  if (rootNeed) {
-    return `我理解你真正想要的是：${rootNeed}。对吗？`
+  if (rootNeed && !/想买|购买|入手/.test(rootNeed)) {
+    return `你真正想要的是\n${rootNeed}。对吗？`
   }
-  return `所以你真正要解决的，是“${productText}”能帮你搞定的那件具体的事，对吗？`
+  return `你真正要解决的，不是拥有“${productText}”。对吗？`
 }
 
 /** 模型偶尔会把 readiness 写成十分制或百分制，按量纲折回 0–1 而不是直接丢弃整份输出 */
@@ -79,9 +90,43 @@ function normalizeItemList(list, fallbackNeedId, max) {
     .slice(0, max)
 }
 
-function sanitizeModelOutput(modelOutput) {
+/**
+ * 模型只回传本轮变化的字段，服务端把它合进上一轮的草稿。
+ * 空值不覆盖已有值：模型偶尔会把已确认的字段写成空串或空数组，
+ * 那不代表用户改主意了，只代表它这一轮没提。
+ */
+function mergeDraft(previous = {}, incoming = {}) {
+  const merged = { ...previous }
+  for (const [key, value] of Object.entries(incoming)) {
+    if (value == null) continue
+    if (typeof value === 'string' && !value.trim()) continue
+    if (Array.isArray(value) && !value.length) continue
+    merged[key] = value
+  }
+  return merged
+}
+
+function normalizeIncomingDraft(incoming) {
+  const normalized = {
+    ...incoming,
+    constraints: clampArray(incoming.constraints, 5),
+    failureConditions: clampArray(incoming.failureConditions, 5),
+    evidenceQuotes: clampArray(incoming.evidenceQuotes, 6),
+    missingDimensions: clampArray(incoming.missingDimensions, 6),
+    keyDimensions: clampArray(incoming.keyDimensions, 4),
+    askedDimensions: clampArray(incoming.askedDimensions, 6)
+  }
+  if (incoming.readiness !== undefined) {
+    normalized.readiness = normalizeReadiness(incoming.readiness)
+  }
+  return normalized
+}
+
+function sanitizeModelOutput(modelOutput, request = {}) {
   const raw = modelOutput && typeof modelOutput === 'object' ? modelOutput : {}
-  const draft = raw.draft && typeof raw.draft === 'object' ? raw.draft : {}
+  const patch = raw.draftPatch && typeof raw.draftPatch === 'object' ? raw.draftPatch : {}
+  const full = raw.draft && typeof raw.draft === 'object' ? raw.draft : {}
+  const draft = mergeDraft(request.draft || {}, normalizeIncomingDraft({ ...patch, ...full }))
   const phase = ['clarify_need', 'confirm_need', 'done'].includes(raw.phase)
     ? raw.phase
     : 'clarify_need'
@@ -104,14 +149,7 @@ function sanitizeModelOutput(modelOutput) {
         label: typeof raw.progress.label === 'string' ? raw.progress.label : '继续拆解'
       }
       : { current: 1, total: 3, label: '继续拆解' },
-    draft: {
-      ...draft,
-      readiness: normalizeReadiness(draft.readiness),
-      constraints: clampArray(draft.constraints, 5),
-      failureConditions: clampArray(draft.failureConditions, 5),
-      evidenceQuotes: clampArray(draft.evidenceQuotes, 6),
-      missingDimensions: clampArray(draft.missingDimensions, 6)
-    },
+    draft,
     result: rawResult && {
       ...rawResult,
       reasons: clampArray(rawResult.reasons, 3),
@@ -133,8 +171,13 @@ function sanitizeModelOutput(modelOutput) {
 function forceClarify(response, request, reasonLabel) {
   const tier = readTier(response, request)
   const plan = planFor(response, request)
-  const followUp = pickFollowUp(request.questionCount || 0, tier)
-  const keepModelQuestion = looksLikeQuestion(response.assistantMessage)
+  const followUp = pickNeedFollowUp(
+    response.draft,
+    request.productText,
+    request.questionCount || 0,
+    tier
+  )
+  const keepModelQuestion = looksLikeNeedQuestion(response.assistantMessage)
     && response.phase !== 'done'
   const sourceOptions = keepModelQuestion && response.options?.length
     ? response.options
@@ -196,6 +239,7 @@ function canEnterConfirm(response, request) {
   return answeredEnough
     && readiness >= plan.readinessThreshold
     && evidenceCount >= plan.minEvidence
+    && needDiscoveryComplete(response.draft, request.productText, readTier(response, request))
 }
 
 function enforcePhase(response, request) {
@@ -238,7 +282,7 @@ function enforcePhase(response, request) {
     return forceClarify(response, request, '还没拆清，继续问')
   }
 
-  if (!looksLikeQuestion(response.assistantMessage)) {
+  if (!looksLikeNeedQuestion(response.assistantMessage)) {
     return forceClarify(response, request, '继续追问')
   }
 
@@ -250,6 +294,62 @@ function enforcePhase(response, request) {
   )
   response.draft = { ...response.draft, decisionTier: tier }
   return response
+}
+
+function normalizeCandidate(item, hasSearch) {
+  const url = hasSearch && typeof item.url === 'string' && /^https?:\/\//.test(item.url)
+    ? item.url
+    : null
+  const price = hasSearch && typeof item.price === 'string' && item.price.trim()
+    ? item.price.trim().slice(0, 40)
+    : null
+  return {
+    ...item,
+    verificationStatus: hasSearch ? '联网搜索摘要，请自行核对' : '模型常识，未联网核验',
+    price,
+    url
+  }
+}
+
+function asSearchCandidate(item, needId) {
+  return {
+    title: String(item.title || '检索结果').slice(0, 100),
+    why: String(item.content || '来自联网检索，下单前请核对店铺与价格').slice(0, 300),
+    servesNeedId: NEED_IDS.includes(needId) ? needId : 'utility',
+    verificationStatus: '联网搜索摘要，请自行核对',
+    price: null,
+    url: item.url
+  }
+}
+
+function fillCandidates(candidates, searchEvidence, needId, hasSearch) {
+  const normalized = (Array.isArray(candidates) ? candidates : [])
+    .slice(0, 3)
+    .map((item) => normalizeCandidate(item, hasSearch))
+
+  if (!hasSearch) return normalized.slice(0, 3)
+
+  const items = (searchEvidence?.items || []).filter((item) => item?.url)
+  const used = new Set(normalized.map((item) => item.url).filter(Boolean))
+
+  const patched = normalized.map((item) => {
+    if (item.url) return item
+    const hit = items.find((entry) => !used.has(entry.url) && (
+      platformFromUrl(entry.url)
+      || (item.title && entry.title && entry.title.includes(item.title.slice(0, 8)))
+    ))
+    if (!hit) return item
+    used.add(hit.url)
+    return { ...item, url: hit.url, verificationStatus: '联网搜索摘要，请自行核对' }
+  })
+
+  const leftover = items.filter((item) => !used.has(item.url))
+  const preferred = leftover.filter((item) => item.sourceKind === 'shop' || platformFromUrl(item.url))
+  const extras = (preferred.length ? preferred : leftover)
+    .slice(0, Math.max(0, 3 - patched.length))
+    .map((item) => asSearchCandidate(item, needId))
+
+  return [...patched, ...extras].slice(0, 3)
 }
 
 function applyResultGuards(response, request = {}) {
@@ -288,22 +388,35 @@ function applyResultGuards(response, request = {}) {
     }
   }
 
-  result.candidateProducts = result.confidence === 'low'
-    ? []
-    : result.candidateProducts.slice(0, 2).map((item) => {
-      const url = hasSearch && typeof item.url === 'string' && /^https?:\/\//.test(item.url)
-        ? item.url
-        : null
-      const price = hasSearch && typeof item.price === 'string' && item.price.trim()
-        ? item.price.trim().slice(0, 40)
-        : null
-      return {
-        ...item,
-        verificationStatus: hasSearch ? '联网搜索摘要，请自行核对' : '模型常识，未联网核验',
-        price,
-        url
-      }
-    })
+  // 模型漏读价格时，用服务端从检索结果抽出的锚点补上，不必因此整份降级
+  const anchorText = request.searchEvidence?.priceAnchor?.text
+  if (hasSearch && anchorText && !String(result.marketSnapshot?.priceRange || '').trim()) {
+    result.marketSnapshot = {
+      ...result.marketSnapshot,
+      priceRange: anchorText
+    }
+  }
+
+  result.candidateProducts = fillCandidates(
+    result.confidence === 'low' ? [] : result.candidateProducts,
+    request.searchEvidence,
+    result.primaryNeedId || 'utility',
+    hasSearch
+  )
+
+  if (!String(result.needDecomposition?.functional || '').trim()) {
+    result.needDecomposition = {
+      ...result.needDecomposition,
+      functional: String(result.rootNeed || result.needSentence || '').slice(0, 500)
+    }
+  }
+
+  if (!Array.isArray(result.reasons) || result.reasons.length < 2) {
+    const extra = []
+    if (result.marketSnapshot?.priceRange) extra.push(`参考价大约 ${result.marketSnapshot.priceRange}。`)
+    if (result.marketSnapshot?.reputation) extra.push(result.marketSnapshot.reputation.slice(0, 80))
+    result.reasons = [...(result.reasons || []), ...extra].filter(Boolean).slice(0, 3)
+  }
 
   if (result.verdict !== 'buy') {
     result.cooldownHours = Math.max(
@@ -318,7 +431,7 @@ function applyResultGuards(response, request = {}) {
 }
 
 function applyPolicy(modelOutput, request) {
-  let response = analyzeResponseSchema.parse(sanitizeModelOutput(modelOutput))
+  let response = analyzeResponseSchema.parse(sanitizeModelOutput(modelOutput, request))
   response = enforcePhase(response, request)
 
   const plan = planFor(response, request)

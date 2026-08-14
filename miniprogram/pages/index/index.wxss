@@ -3,26 +3,6 @@
   padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
 }
 
-.brand-row {
-  display: flex;
-  align-items: flex-start;
-}
-
-.brand-lockup {
-  font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 40rpx;
-  font-weight: 1000;
-  letter-spacing: -4rpx;
-  -webkit-text-stroke: 1rpx #101619;
-}
-
-.brand-meta {
-  margin: 8rpx 0 0 16rpx;
-  font-size: 24rpx;
-  font-weight: 900;
-  line-height: 1.4;
-}
-
 .sticker {
   display: inline-block;
   margin-top: 22rpx;
@@ -43,26 +23,35 @@
 }
 
 .marker-line {
+  display: block;
   width: 100%;
-  height: 14rpx;
-  margin: 10rpx 0 14rpx;
-  background: #1648d8;
-  clip-path: polygon(0 20%, 100% 0, 98% 72%, 2% 100%);
+  margin: -4rpx 0 8rpx;
 }
 
 .score-card,
 .meter-card,
 .input-card {
   position: relative;
-  margin-top: 40rpx;
   border: 5rpx solid #101619;
   border-radius: 28rpx;
   background: #fffdf8;
 }
 
+.status-row {
+  display: flex;
+  align-items: stretch;
+  gap: 16rpx;
+  margin-top: 48rpx;
+}
+
 .score-card {
-  padding: 22rpx 24rpx 14rpx;
-  box-shadow: 10rpx 10rpx 0 #101619;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 36rpx 16rpx 16rpx;
+  box-shadow: 8rpx 8rpx 0 #101619;
 }
 
 .card-tab {
@@ -80,14 +69,14 @@
 .timer {
   color: #1648d8;
   font-family: "Arial Black", Arial, sans-serif;
-  font-size: 92rpx;
+  font-size: 48rpx;
   font-weight: 1000;
-  letter-spacing: -4rpx;
-  line-height: 0.95;
+  letter-spacing: -2rpx;
+  line-height: 1;
   text-align: center;
   transform: skewX(-5deg);
   font-variant-numeric: tabular-nums;
-  -webkit-text-stroke: 3rpx #1648d8;
+  -webkit-text-stroke: 2rpx #1648d8;
   text-shadow: -2rpx 0 #1648d8, 2rpx 0 #1648d8, 0 -2rpx #1648d8, 0 2rpx #1648d8;
 }
 
@@ -98,87 +87,176 @@
 }
 
 .timer-caption {
-  margin-top: 8rpx;
+  margin-top: 10rpx;
   overflow: hidden;
   font-size: 22rpx;
   font-weight: 900;
+  line-height: 1.35;
   text-align: center;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .meter-card {
-  padding: 20rpx;
-}
-
-.meter-card-hover {
-  background: #f5f1e8;
-}
-
-.meter-title {
   display: flex;
+  flex: none;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 24rpx;
-  font-weight: 1000;
-  -webkit-text-stroke: 1rpx #101619;
-  text-shadow: 1rpx 0 #101619, 0 1rpx #101619;
+  justify-content: center;
+  width: 220rpx;
+  padding: 36rpx 12rpx 16rpx;
+  box-shadow: 8rpx 8rpx 0 #101619;
+  transition: background-color 280ms ease-out;
 }
 
-.meter-score {
-  font-family: "Arial Black", Arial, sans-serif;
-  font-size: 48rpx;
-  font-weight: 1000;
-  font-variant-numeric: tabular-nums;
-  -webkit-text-stroke: 2rpx #101619;
-}
-
-.meter-track {
-  height: 34rpx;
-  margin-top: 10rpx;
-  padding: 5rpx;
-  border: 4rpx solid #101619;
-  border-radius: 999rpx;
-}
-
-.meter-fill {
-  width: 0%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #ddff32, #ffe53b 52%, #ff543c);
-  transition: width 280ms ease-out;
-}
-
-.meter-score.level-warm {
-  color: #f0810a;
-  -webkit-text-stroke-color: #f0810a;
-}
-
-.meter-score.level-hot {
-  color: #ff543c;
-  -webkit-text-stroke-color: #ff543c;
-}
-
-.meter-labels {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-top: 10rpx;
-  font-size: 24rpx;
-  font-weight: 900;
-}
-
-.meter-hint {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.meter-card .card-tab {
+  padding: 9rpx 16rpx;
   white-space: nowrap;
 }
 
-.meter-why {
-  flex: none;
-  color: #6d6862;
+.meter-card-hover {
+  filter: brightness(0.97);
+}
+
+.meter-card-overheat {
+  box-shadow: 8rpx 8rpx 0 #ff543c;
+}
+
+.thermo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.thermo-overheat {
+  animation: thermo-jitter 380ms steps(2, end) infinite;
+}
+
+.thermo-spill {
+  position: absolute;
+  top: -16rpx;
+  left: 50%;
+  z-index: 2;
+  width: 28rpx;
+  height: 22rpx;
+  margin-left: -14rpx;
+  border: 4rpx solid #101619;
+  border-radius: 50% 50% 42% 42%;
+}
+
+.thermo-drop {
+  position: absolute;
+  z-index: 2;
+  width: 10rpx;
+  height: 14rpx;
+  border: 3rpx solid #101619;
+  border-radius: 50% 50% 50% 12%;
+  animation: thermo-drip 900ms ease-in infinite;
+}
+
+.thermo-drop-a {
+  top: -6rpx;
+  left: 2rpx;
+}
+
+.thermo-drop-b {
+  top: 8rpx;
+  right: -2rpx;
+  animation-delay: 280ms;
+}
+
+.thermo-ticks {
+  position: absolute;
+  top: 8rpx;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 132rpx;
+}
+
+.thermo-tick {
+  width: 10rpx;
+  height: 4rpx;
+  background: #101619;
+}
+
+.thermo-tube {
+  position: relative;
+  width: 32rpx;
+  height: 140rpx;
+  overflow: hidden;
+  border: 4rpx solid #101619;
+  border-bottom: 0;
+  border-radius: 20rpx 20rpx 0 0;
+  background: #f5f1e8;
+}
+
+.thermo-fill {
+  position: absolute;
+  right: 3rpx;
+  bottom: 0;
+  left: 3rpx;
+  height: 0;
+  background: #1648d8;
+  transition: height 280ms ease-out, background-color 280ms ease-out;
+}
+
+.thermo-bulb {
+  width: 52rpx;
+  height: 52rpx;
+  margin-top: -10rpx;
+  border: 4rpx solid #101619;
+  border-radius: 50%;
+  background: #1648d8;
+}
+
+.meter-score {
+  margin-top: 8rpx;
+  color: #1648d8;
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: 40rpx;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-score-overheat {
+  animation: score-pop 600ms ease-in-out infinite;
+}
+
+@keyframes thermo-jitter {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-3rpx, 2rpx); }
+}
+
+@keyframes thermo-drip {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translateY(36rpx);
+  }
+}
+
+@keyframes score-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thermo-overheat,
+  .thermo-drop,
+  .meter-score-overheat {
+    animation: none;
+  }
 }
 
 .input-card {

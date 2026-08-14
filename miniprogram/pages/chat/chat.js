@@ -2,8 +2,54 @@ const { analyzeStep } = require('../../utils/api')
 const { buildClientFallback } = require('../../utils/fallback')
 const { adaptResult } = require('../../utils/resultAdapter')
 const { clearDraft, createId, loadDraft, saveDraft } = require('../../utils/session')
+const { enableShareMenu, shareAppMessage, shareTimeline } = require('../../utils/share')
 
 const SELF_SUPPLEMENT_OPTION = '我想自己补充'
+const TRIVIAL_PRODUCT_RE = /泡面|方便面|饮料|矿泉水|袜子|纸巾|牙膏|牙刷|口香糖|辣条|零食|火腿肠|垃圾袋/
+
+function loadingCopy({ productText, questionCount, confirmation }) {
+  if (confirmation === true) return '正在查行情、写建议…'
+  if ((questionCount || 0) === 0 && !TRIVIAL_PRODUCT_RE.test(productText || '')) {
+    const short = String(productText || '这件商品').trim().slice(0, 16)
+    return `正在搜索「${short}」…`
+  }
+  return '正在想下一问…'
+}
+
+function formatMessageBlocks(content, role = 'assistant') {
+  const text = String(content || '').trim()
+  if (!text) return []
+  if (role === 'user') return [{ text, kind: 'body' }]
+
+  const paragraphs = text.split(/\n+/).map((part) => part.trim()).filter(Boolean)
+  if (paragraphs.length >= 2) {
+    return paragraphs.map((part, index) => ({
+      text: part,
+      kind: index === paragraphs.length - 1 && /[？?]/.test(part) ? 'question' : 'finding'
+    }))
+  }
+
+  const split = text.match(/^([\s\S]*?[。！!])\s*([^。！!\n]{2,}[？?])$/)
+  if (split && split[1].trim().length >= 6) {
+    return [
+      { text: split[1].trim(), kind: 'finding' },
+      { text: split[2].trim(), kind: 'question' }
+    ]
+  }
+
+  return [{ text, kind: /[？?]/.test(text) ? 'question' : 'body' }]
+}
+
+function withBlocks(message) {
+  if (!message || typeof message !== 'object') return message
+  return {
+    ...message,
+    images: message.images || [],
+    blocks: Array.isArray(message.blocks) && message.blocks.length
+      ? message.blocks
+      : formatMessageBlocks(message.content, message.role)
+  }
+}
 
 Page({
   data: {
@@ -24,6 +70,7 @@ Page({
     impulse: null,
     mode: 'live',
     loading: false,
+    loadingText: '正在想下一问…',
     errorMessage: '',
     completed: false
   },
@@ -40,6 +87,7 @@ Page({
     if (saved) {
       this.setData({
         ...saved,
+        messages: (saved.messages || []).map(withBlocks),
         showTextInput: Boolean(saved.showTextInput)
       }, () => {
         const lastMessage = this.data.messages[this.data.messages.length - 1]
@@ -54,9 +102,13 @@ Page({
       sessionId: createId('session'),
       productText,
       impulse: wx.getStorageSync('calm_buy_current_impulse_v1') || null,
-      messages: [{ role: 'user', content: `我想买：${productText}` }]
+      messages: [withBlocks({ role: 'user', content: `我想买：${productText}`, images: [] })]
     }
     this.setData(initialState, () => this.requestStep())
+  },
+
+  onShow() {
+    enableShareMenu()
   },
 
   onReady() {
@@ -110,7 +162,7 @@ Page({
   },
 
   conversationMessages() {
-    return this.data.messages.slice(1).map(({ role, content }) => ({ role, content }))
+    return this.data.messages.map(({ role, content }) => ({ role, content }))
   },
 
   onInput(event) {
@@ -129,7 +181,10 @@ Page({
       return
     }
 
-    this.appendUserAnswer(value, { incrementQuestion: true })
+    this.appendUserAnswer(value, {
+      incrementQuestion: true,
+      confirmation: this.data.phase === 'confirm_need' ? false : null
+    })
   },
 
   isSelfSupplement(value) {
@@ -160,28 +215,34 @@ Page({
     this.appendUserAnswer(value, { incrementQuestion: true })
   },
 
-  appendUserAnswer(content, { incrementQuestion }) {
+  appendUserAnswer(content, { incrementQuestion, confirmation = null }) {
     this.setData({
-      messages: [...this.data.messages, { role: 'user', content }],
+      messages: [...this.data.messages, withBlocks({ role: 'user', content, images: [] })],
       inputValue: '',
       options: [],
       showTextInput: false,
       textInputFocus: false,
       questionCount: incrementQuestion ? this.data.questionCount + 1 : this.data.questionCount
-    }, () => this.requestStep())
+    }, () => this.requestStep({ confirmation }))
   },
 
   confirmNeed(event) {
     if (this.data.loading) return
     const confirmed = event.currentTarget.dataset.value === 'yes'
-    const content = confirmed ? '对，就是这个' : '不对，我补充'
+
+    if (!confirmed) {
+      this.setData({ showTextInput: true, textInputFocus: false }, () => {
+        this.setData({ textInputFocus: true })
+      })
+      return
+    }
 
     this.setData({
-      messages: [...this.data.messages, { role: 'user', content }],
+      messages: [...this.data.messages, withBlocks({ role: 'user', content: '对，就是这个', images: [] })],
       options: [],
       showTextInput: false,
       textInputFocus: false
-    }, () => this.requestStep({ confirmation: confirmed }))
+    }, () => this.requestStep({ confirmation: true }))
   },
 
   retry() {
@@ -199,7 +260,17 @@ Page({
   },
 
   async requestStep({ confirmation = null } = {}) {
-    this.setData({ loading: true, errorMessage: '', showTextInput: false, textInputFocus: false })
+    this.setData({
+      loading: true,
+      loadingText: loadingCopy({
+        productText: this.data.productText,
+        questionCount: this.data.questionCount,
+        confirmation
+      }),
+      errorMessage: '',
+      showTextInput: false,
+      textInputFocus: false
+    })
 
     const payload = {
       requestId: createId('request'),
@@ -239,7 +310,11 @@ Page({
     }
 
     const messages = response.assistantMessage
-      ? [...this.data.messages, { role: 'assistant', content: response.assistantMessage }]
+      ? [...this.data.messages, withBlocks({
+        role: 'assistant',
+        content: response.assistantMessage,
+        images: (response.images || []).slice(0, 2)
+      })]
       : this.data.messages
     const progress = response.progress || {}
     const total = Number(progress.total) || this.data.progressTotal
@@ -268,6 +343,7 @@ Page({
       mode: response.mode || 'fallback',
       productText: this.data.productText,
       searchUsed: Boolean(response.searchUsed),
+      searchProvider: response.searchProvider || '',
       searchSources: response.searchSources || []
     })
 
@@ -275,7 +351,7 @@ Page({
     getApp().globalData.currentSession = null
     wx.setStorageSync('lastResult', result)
     clearDraft()
-    this.setData({ loading: false, completed: true })
+    this.setData({ loading: false, completed: true, phase: 'done' })
     if (this._pageReady) {
       this.navigateToResult()
     } else {
@@ -296,5 +372,17 @@ Page({
         }
       })
     }, 500)
-  }
+  },
+
+  previewImage(event) {
+    const current = event.currentTarget.dataset.url
+    if (!current) return
+    const urls = (this.data.messages || [])
+      .flatMap((message) => (message.images || []).map((img) => img.url))
+      .filter(Boolean)
+    wx.previewImage({ current, urls: urls.length ? urls : [current] })
+  },
+
+  onShareAppMessage: shareAppMessage,
+  onShareTimeline: shareTimeline
 })

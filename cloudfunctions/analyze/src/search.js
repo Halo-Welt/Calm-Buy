@@ -17,7 +17,7 @@ function isTavilyConfigured() {
 }
 
 function isSearchConfigured() {
-  return isDoubaoConfigured() || isTavilyConfigured() || true
+  return isDoubaoConfigured() || isTavilyConfigured()
 }
 
 function preferredProvider() {
@@ -27,14 +27,30 @@ function preferredProvider() {
   return isDoubaoConfigured() ? 'doubao' : 'tavily'
 }
 
-function buildSearchQueries(productText) {
-  const product = String(productText || '').trim().slice(0, 80)
+/**
+ * 一条 query 塞不下三件事。按意图拆开分别检索，再在合并阶段保证每种意图都有结果，
+ * 否则排序很容易被清一色的比价页占满，拿不到差评和替代方案。
+ */
+function buildSearchQueries(productText, draft = {}, { round = 'first' } = {}) {
+  const product = String(productText || '').trim().slice(0, 60)
+  if (!product) return []
+  const need = String(draft.rootNeed || draft.desiredOutcome || '').trim().slice(0, 30)
+
   const queries = [
-    `${product} 价格 多少钱`,
-    `${product} 真实评价 口碑 优缺点`,
-    `${product} 缺点 踩坑 值不值得买`
+    { intent: 'price', query: `${product} 价格 多少钱 京东 淘宝 拼多多` },
+    { intent: 'reputation', query: `${product} 值不值得买 真实评价 缺点 翻车` }
   ]
-  return [...new Set(queries.filter(Boolean))].slice(0, 3).map((q) => q.slice(0, 100))
+
+  if (round === 'final') {
+    queries.push({
+      intent: 'alternative',
+      query: need ? `${need} 替代方案 更平价 推荐` : `${product} 替代方案 更平价 值得买`
+    })
+  } else if (need) {
+    queries.push({ intent: 'alternative', query: `${product} ${need} 适合吗 选购` })
+  }
+
+  return queries.map((item) => ({ ...item, query: item.query.slice(0, 100) }))
 }
 
 function snippetText(snippetList) {
@@ -46,7 +62,139 @@ function snippetText(snippetList) {
     .slice(0, 500)
 }
 
-async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 12000 } = {}) {
+function snippetImages(snippetList) {
+  if (!Array.isArray(snippetList)) return []
+  return snippetList
+    .filter((s) => s && String(s.Type || '').toLowerCase() === 'image')
+    .map((s) => ({
+      url: String(s.Image?.ImageUrl || s.ImageUrl || s.Url || '').slice(0, 500),
+      alt: String(s.Image?.Alt || s.Text || '').slice(0, 80)
+    }))
+    .filter((item) => /^https?:\/\//i.test(item.url))
+}
+
+function collectImages(candidates, limit = 4) {
+  const seen = new Set()
+  const out = []
+  for (const item of candidates || []) {
+    const url = String(item?.url || (typeof item === 'string' ? item : '')).slice(0, 500)
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue
+    seen.add(url)
+    out.push({
+      url,
+      alt: String(item?.alt || item?.description || '').slice(0, 80)
+    })
+    if (out.length >= limit) break
+  }
+  return out
+}
+
+function platformFromUrl(url = '') {
+  const host = String(url).toLowerCase()
+  if (/taobao\.com|tmall\.com/.test(host)) return '淘宝'
+  if (/jd\.com/.test(host)) return '京东'
+  if (/pinduoduo\.com|yangkeduo\.com/.test(host)) return '拼多多'
+  if (/douyin\.com|iesdouyin/.test(host)) return '抖音'
+  if (/xiaohongshu\.com|xhslink/.test(host)) return '小红书'
+  if (/smzdm\.com/.test(host)) return '什么值得买'
+  if (/zhihu\.com/.test(host)) return '知乎'
+  return ''
+}
+
+/**
+ * 不同来源对购买决策的价值差很远：商品页给得出真实报价，社区和评测给得出差评，
+ * 洗稿站两样都给不出。排序时按这个权重放大位次分。
+ */
+const SOURCE_TIERS = [
+  {
+    kind: 'farm',
+    weight: 0.6,
+    re: /baijiahao\.baidu\.com|wenku\.baidu\.com|docin\.com|doc88\.com|renrendoc\.com|so\.com|sm\.cn/
+  },
+  {
+    kind: 'shop',
+    weight: 1.25,
+    re: /taobao\.com|tmall\.com|jd\.com|pinduoduo\.com|yangkeduo\.com|suning\.com|vip\.com|kaola\.com|apple\.com\/[a-z-]*\/shop/
+  },
+  {
+    kind: 'community',
+    weight: 1.15,
+    re: /smzdm\.com|zhihu\.com|xiaohongshu\.com|xhslink|bilibili\.com|douban\.com|coolapk\.com|chiphell\.com|tieba\.baidu\.com/
+  },
+  {
+    kind: 'media',
+    weight: 1.08,
+    re: /ithome\.com|zol\.com\.cn|pconline\.com\.cn|expreview\.com|sspai\.com|geekpark\.net|autohome\.com\.cn|dongchedi\.com|dcdapp\.com/
+  }
+]
+
+function sourceTier(url = '') {
+  const host = String(url).toLowerCase()
+  const hit = SOURCE_TIERS.find((tier) => tier.re.test(host))
+  return hit ? { kind: hit.kind, weight: hit.weight } : { kind: 'general', weight: 1 }
+}
+
+/** 「12.98 万元」这类写法必须带「万元」才认，否则「销量 10 万+」会被读成十万块 */
+const PRICE_WAN_RE = /(\d+(?:\.\d{1,2})?)\s*万\s*元/g
+const PRICE_YUAN_RE = /(?:[¥￥]|RMB\s*|人民币\s*)(\d{1,3}(?:,\d{3})+|\d+(?:\.\d{1,2})?)|(\d{1,3}(?:,\d{3})+|\d+(?:\.\d{1,2})?)\s*(?:元|块钱)/gi
+
+const PRICE_FLOOR = 5
+const PRICE_CEILING = 5000000
+
+function parsePrices(text = '') {
+  const source = String(text)
+  const values = []
+
+  for (const match of source.matchAll(PRICE_WAN_RE)) {
+    values.push(Number(match[1]) * 10000)
+  }
+  for (const match of source.matchAll(PRICE_YUAN_RE)) {
+    values.push(Number(String(match[1] || match[2]).replaceAll(',', '')))
+  }
+
+  return values.filter((value) => Number.isFinite(value) && value >= PRICE_FLOOR && value <= PRICE_CEILING)
+}
+
+function formatMoney(value) {
+  if (value >= 10000) return `${Number((value / 10000).toFixed(2))} 万`
+  return String(Math.round(value))
+}
+
+function formatPriceRange(min, max) {
+  if (!Number.isFinite(min)) return null
+  if (max - min < Math.max(1, min * 0.05)) return `约 ${formatMoney(min)} 元`
+  return `约 ${formatMoney(min)}–${formatMoney(max)} 元`
+}
+
+/**
+ * 让模型自己从几千字摘要里读价格，十次里有几次会读成 null 或读到配件价。
+ * 服务端先抽成结构化区间：既能当提示词里的价格锚点，也能给决策量级判定当依据。
+ * 按中位数剔除离群值，避免「手机壳 29 元」把手机的价格带塌。
+ */
+function extractPriceAnchor(items = []) {
+  const values = []
+  for (const item of items) {
+    values.push(...parsePrices(`${item?.title || ''} ${item?.content || ''}`))
+  }
+  if (!values.length) return null
+
+  const sorted = values.sort((a, b) => a - b)
+  const median = sorted[Math.floor(sorted.length / 2)]
+  const kept = sorted.filter((value) => value >= median / 8 && value <= median * 8)
+  if (!kept.length) return null
+
+  const min = kept[0]
+  const max = kept[kept.length - 1]
+  return {
+    min,
+    max,
+    median: kept[Math.floor(kept.length / 2)],
+    count: kept.length,
+    text: formatPriceRange(min, max)
+  }
+}
+
+async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 8000 } = {}) {
   const apiKey = getDoubaoApiKey()
   if (!apiKey) {
     const error = new Error('未配置 DOUBAO_SEARCH_API_KEY')
@@ -68,7 +216,7 @@ async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 12000 } =
         Query: String(query || '').slice(0, 100),
         DocCount: Math.min(Math.max(Number(maxResults) || 4, 1), 20),
         MaxSnippetLength: 800,
-        MaxImageCountPerDoc: 0
+        MaxImageCountPerDoc: 2
       }),
       signal: controller.signal
     })
@@ -120,7 +268,8 @@ async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 12000 } =
       title: String(doc.Title || '').slice(0, 160),
       url: String(doc.Url || '').slice(0, 500),
       content: snippetText(doc.Snippet),
-      score: 1 / (1 + (Number.isFinite(doc.Rank) ? doc.Rank : index)),
+      images: snippetImages(doc.Snippet),
+      rank: Number.isFinite(doc.Rank) ? doc.Rank : index,
       query,
       host: doc.HostInfo?.Hostname || ''
     }))
@@ -162,13 +311,17 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
   }
 
   function mapResults(payload) {
-    return (payload.results || []).map((item) => ({
+    const items = (payload.results || []).map((item, index) => ({
       title: String(item.title || '').slice(0, 160),
       url: String(item.url || '').slice(0, 500),
       content: String(item.content || item.snippet || '').slice(0, 500),
-      score: Number(item.score) || 0,
+      rank: index,
       query
     }))
+    return {
+      items,
+      images: collectImages(payload.images || [])
+    }
   }
 
   try {
@@ -179,7 +332,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
           query,
           search_depth: 'basic',
           include_answer: false,
-          include_images: false,
+          include_images: true,
           include_raw_content: false,
           max_results: maxResults,
           topic: 'general'
@@ -205,7 +358,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
         query,
         search_depth: 'basic',
         include_answer: false,
-        include_images: false,
+        include_images: true,
         include_raw_content: false,
         max_results: maxResults,
         topic: 'general'
@@ -230,11 +383,47 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
   }
 }
 
-async function searchOnce(query, { maxResults = 3 } = {}) {
+/**
+ * 豆包给的是位次、Tavily 给的是自家相关性分，两者量纲不可比，混在一起排序等于没排。
+ * 统一折成「provider 内位次分 × 来源权重」再参与合并排序。
+ */
+function decorateItems(items, intent) {
+  return (items || []).map((item, index) => {
+    const rank = Number.isFinite(item.rank) ? item.rank : index
+    const tier = sourceTier(item.url)
+    return {
+      ...item,
+      rank,
+      intent,
+      sourceKind: tier.kind,
+      relevance: (1 / (1 + rank)) * tier.weight
+    }
+  })
+}
+
+function asSearchResult(provider, raw, intent) {
+  if (Array.isArray(raw)) {
+    return {
+      provider,
+      items: decorateItems(raw, intent),
+      images: collectImages(raw.flatMap((item) => item.images || []))
+    }
+  }
+  return {
+    provider,
+    items: decorateItems(raw.items, intent),
+    images: collectImages([
+      ...(raw.images || []),
+      ...(raw.items || []).flatMap((item) => item.images || [])
+    ])
+  }
+}
+
+async function searchOnce(query, { maxResults = 3, intent = 'general' } = {}) {
   const provider = preferredProvider()
   if (provider === 'doubao') {
     try {
-      return { provider: 'doubao', items: await doubaoGlobalSearch(query, { maxResults }) }
+      return asSearchResult('doubao', await doubaoGlobalSearch(query, { maxResults }), intent)
     } catch (error) {
       const shouldFallback = error.code === 'DOUBAO_QUOTA_EXHAUSTED'
         || error.code === 'DOUBAO_NOT_CONFIGURED'
@@ -249,34 +438,98 @@ async function searchOnce(query, { maxResults = 3 } = {}) {
         doubaoCode: error.doubaoCode || null,
         message: error.message
       }))
-      return { provider: 'tavily', items: await tavilySearch(query, { maxResults }) }
+      return asSearchResult('tavily', await tavilySearch(query, { maxResults }), intent)
     }
   }
-  return { provider: 'tavily', items: await tavilySearch(query, { maxResults }) }
+  return asSearchResult('tavily', await tavilySearch(query, { maxResults }), intent)
 }
 
-function formatSearchSummary(items) {
+const INTENT_LABELS = {
+  price: '价格/渠道',
+  reputation: '口碑/缺点',
+  alternative: '替代方案',
+  general: '综合'
+}
+
+/**
+ * 追问轮只需要价格和一两个坑点，塞四千字进提示词既慢又让模型抓不住重点；
+ * 最终轮才需要完整摘要来支撑结论。
+ */
+const SUMMARY_BUDGETS = {
+  brief: { maxItems: 4, contentChars: 180 },
+  full: { maxItems: 8, contentChars: 420 }
+}
+
+function formatSearchSummary(items, images = [], { budget = 'full', priceAnchor = null } = {}) {
   if (!items.length) return '未检索到可用网页摘要。'
-  return items.map((item, index) => {
+  const { maxItems, contentChars } = SUMMARY_BUDGETS[budget] || SUMMARY_BUDGETS.full
+
+  const body = items.slice(0, maxItems).map((item, index) => {
+    const tags = [
+      platformFromUrl(item.url),
+      INTENT_LABELS[item.intent] || ''
+    ].filter(Boolean).join('·')
     const parts = [
-      `[${index + 1}] ${item.title || '无标题'}`,
+      `[${index + 1}] ${item.title || '无标题'}${tags ? `（${tags}）` : ''}`,
       item.url ? `来源：${item.url}` : '',
-      item.content ? `摘要：${item.content}` : ''
+      item.content ? `摘要：${String(item.content).slice(0, contentChars)}` : ''
     ].filter(Boolean)
     return parts.join('\n')
   }).join('\n\n')
+
+  const header = priceAnchor?.text
+    ? `价格锚点（服务端从以下结果里抽出的 ${priceAnchor.count} 个报价，可直接引用）：${priceAnchor.text}\n\n`
+    : ''
+  if (!images.length) return `${header}${body}`
+  return `${header}${body}\n\n可用配图（展示给用户，不要编造其它链接）：\n${
+    images.map((img, index) => `${index + 1}. ${img.url}`).join('\n')
+  }`
 }
 
-async function researchProduct(productText) {
-  const queries = buildSearchQueries(productText)
+/** 按意图轮转取结果，保证价格页不会把差评和替代方案挤出去 */
+function interleaveByIntent(items, limit) {
+  const groups = new Map()
+  for (const item of items) {
+    const key = item.intent || 'general'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
+  }
+  for (const list of groups.values()) {
+    list.sort((a, b) => b.relevance - a.relevance)
+  }
+
+  const out = []
+  let picked = true
+  while (out.length < limit && picked) {
+    picked = false
+    for (const list of groups.values()) {
+      if (!list.length || out.length >= limit) continue
+      out.push(list.shift())
+      picked = true
+    }
+  }
+  return out
+}
+
+/** 没有正文又不是商品页的结果，对结论毫无贡献，只会占摘要预算 */
+function hasDecisionValue(item) {
+  if (!item?.url) return false
+  if (item.sourceKind === 'shop') return true
+  const content = String(item.content || '')
+  return content.length >= 16 || parsePrices(content).length > 0
+}
+
+async function researchProduct(productText, draft = {}, { round = 'first' } = {}) {
+  const plans = buildSearchQueries(productText, draft, { round })
   const settled = await Promise.allSettled(
-    queries.map((query) => searchOnce(query, { maxResults: 3 }))
+    plans.map((plan) => searchOnce(plan.query, { maxResults: 4, intent: plan.intent }))
   )
 
   const items = []
   const seen = new Set()
   const errors = []
   const providers = new Set()
+  const imageCandidates = []
 
   for (const result of settled) {
     if (result.status !== 'fulfilled') {
@@ -284,17 +537,21 @@ async function researchProduct(productText) {
       continue
     }
     providers.add(result.value.provider)
+    imageCandidates.push(...(result.value.images || []))
     for (const item of result.value.items) {
       const key = item.url || `${item.title}:${item.content.slice(0, 40)}`
       if (seen.has(key)) continue
       seen.add(key)
+      if (!hasDecisionValue(item)) continue
       items.push(item)
+      imageCandidates.push(...(item.images || []))
     }
   }
 
-  const limited = items
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
+  const budget = round === 'final' ? 'full' : 'brief'
+  const limited = interleaveByIntent(items, SUMMARY_BUDGETS[budget].maxItems)
+  const images = collectImages(imageCandidates, 4)
+  const priceAnchor = extractPriceAnchor(limited)
 
   const provider = providers.has('doubao') && !providers.has('tavily')
     ? 'doubao'
@@ -305,9 +562,12 @@ async function researchProduct(productText) {
   return {
     enabled: limited.length > 0,
     provider,
-    queries,
+    round,
+    queries: plans.map((plan) => plan.query),
     items: limited,
-    summary: formatSearchSummary(limited),
+    images,
+    priceAnchor,
+    summary: formatSearchSummary(limited, images, { budget, priceAnchor }),
     errors: errors.slice(0, 3),
     doubaoQuotaExhausted
   }
@@ -319,6 +579,8 @@ function emptySearchEvidence(error) {
     provider: null,
     queries: [],
     items: [],
+    images: [],
+    priceAnchor: null,
     summary: '',
     ...(error ? { error } : {})
   }
@@ -330,11 +592,19 @@ function annotateSearchMeta(result, searchEvidence) {
   return {
     ...result,
     searchUsed: used,
+    searchProvider: used ? (searchEvidence.provider || null) : null,
+    searchError: used
+      ? null
+      : (searchEvidence?.error || searchEvidence?.errors?.[0] || null),
     searchSources: used
-      ? searchEvidence.items.slice(0, 5).map((item) => ({
+      ? searchEvidence.items.filter((item) => item.url).slice(0, 6).map((item) => ({
         title: item.title,
-        url: item.url
+        url: item.url,
+        platform: platformFromUrl(item.url)
       }))
+      : [],
+    images: Array.isArray(searchEvidence?.images)
+      ? searchEvidence.images.slice(0, 2)
       : []
   }
 }
@@ -342,11 +612,20 @@ function annotateSearchMeta(result, searchEvidence) {
 module.exports = {
   annotateSearchMeta,
   buildSearchQueries,
+  collectImages,
   doubaoGlobalSearch,
   emptySearchEvidence,
+  extractPriceAnchor,
   formatSearchSummary,
+  interleaveByIntent,
+  isDoubaoConfigured,
   isSearchConfigured,
+  isTavilyConfigured,
+  parsePrices,
   preferredProvider,
   researchProduct,
-  tavilySearch
+  snippetImages,
+  sourceTier,
+  tavilySearch,
+  platformFromUrl
 }

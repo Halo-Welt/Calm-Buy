@@ -13,6 +13,7 @@ const REPEAT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000
 const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000
 
 const LEVELS = [
+  { min: 101, level: 'overheat' },
   { min: 70, level: 'hot' },
   { min: 40, level: 'warm' },
   { min: 1, level: 'mild' }
@@ -116,8 +117,15 @@ function collectSignals(productText, now = Date.now()) {
     })
   }
 
+  if (factors.length >= 3) {
+    factors.push({
+      points: 18,
+      label: '好几条冲动信号叠在一起了'
+    })
+  }
+
   factors.sort((a, b) => b.points - a.points)
-  const temperature = Math.min(100, factors.reduce((sum, item) => sum + item.points, 0))
+  const temperature = factors.reduce((sum, item) => sum + item.points, 0)
 
   return {
     temperature,

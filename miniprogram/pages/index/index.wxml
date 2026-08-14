@@ -1,9 +1,4 @@
 <view class="page index-page">
-  <view class="brand-row">
-    <view class="brand-lockup">Calm Buy</view>
-    <view class="brand-meta">CALM BUY</view>
-  </view>
-
   <view class="sticker">冲动<br/>暂停一下</view>
   <image
     class="display-art"
@@ -11,28 +6,44 @@
     mode="widthFix"
     aria-label="先别买"
   />
-  <view class="marker-line"></view>
+  <image
+    class="marker-line"
+    src="/assets/art/hero-underline.png"
+    mode="widthFix"
+    aria-hidden="true"
+  />
 
-  <view class="score-card">
-    <view class="card-tab">冷静倒计时 ▶</view>
-    <view class="timer {{hasCooldown ? '' : 'timer-idle'}}">{{timerText}}</view>
-    <view class="timer-caption">{{timerCaption}}</view>
-  </view>
-
-  <view
-    class="meter-card"
-    hover-class="meter-card-hover"
-    hover-stay-time="80"
-    bindtap="explainTemperature"
-  >
-    <view class="meter-title">
-      <text>冲动温度 ▶</text>
-      <text class="meter-score level-{{temperatureLevel}}">{{temperature}}°</text>
+  <view class="status-row">
+    <view class="score-card">
+      <view class="card-tab">冲动倒计时 ▶</view>
+      <view class="timer {{hasCooldown ? '' : 'timer-idle'}}">{{timerText}}</view>
+      <view class="timer-caption">{{timerCaption}}</view>
     </view>
-    <view class="meter-track"><view class="meter-fill" style="width: {{meterWidth}}%;"></view></view>
-    <view class="meter-labels">
-      <text class="meter-hint">{{temperatureHint}}</text>
-      <text class="meter-why">为什么 ▸</text>
+
+    <view
+      class="meter-card {{overheat ? 'meter-card-overheat' : ''}}"
+      style="background: {{cardColor}};"
+      hover-class="meter-card-hover"
+      hover-stay-time="80"
+      bindtap="explainTemperature"
+    >
+      <view class="card-tab">{{overheat ? '溢出来了 ▶' : '冲动温度 ▶'}}</view>
+      <view class="thermo {{overheat ? 'thermo-overheat' : ''}}">
+        <view class="thermo-spill" wx:if="{{overheat}}" style="background: {{thermoColor}};"></view>
+        <view class="thermo-drop thermo-drop-a" wx:if="{{overheat}}" style="background: {{thermoColor}};"></view>
+        <view class="thermo-drop thermo-drop-b" wx:if="{{overheat}}" style="background: {{thermoColor}};"></view>
+        <view class="thermo-ticks">
+          <view class="thermo-tick"></view>
+          <view class="thermo-tick"></view>
+          <view class="thermo-tick"></view>
+          <view class="thermo-tick"></view>
+        </view>
+        <view class="thermo-tube">
+          <view class="thermo-fill" style="height: {{meterWidth}}%; background: {{thermoColor}};"></view>
+        </view>
+        <view class="thermo-bulb" style="background: {{thermoColor}};"></view>
+      </view>
+      <view class="meter-score {{overheat ? 'meter-score-overheat' : ''}}" style="color: {{thermoColor}};">{{temperature}}°</view>
     </view>
   </view>
 
@@ -41,7 +52,7 @@
     <input
       class="field"
       maxlength="120"
-      placeholder="例如：很贵的未来眼镜…"
+      placeholder="{{placeholderText}}"
       value="{{productText}}"
       bindinput="onInput"
       confirm-type="go"

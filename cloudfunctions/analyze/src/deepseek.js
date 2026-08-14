@@ -10,7 +10,14 @@ class DeepSeekError extends Error {
   }
 }
 
-async function callDeepSeek(messages, { timeoutMs = 20000 } = {}) {
+function llmBudget(isFinal) {
+  // 追问轮只回传 draftPatch，输出短了一半，上限跟着收紧；最终轮 result 长，留足余量
+  return isFinal
+    ? { timeoutMs: 22000, maxTokens: 2600 }
+    : { timeoutMs: 16000, maxTokens: 1200 }
+}
+
+async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = {}) {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) {
     throw new DeepSeekError('DeepSeek API Key 未配置', 'DEEPSEEK_NOT_CONFIGURED', 503)
@@ -36,13 +43,15 @@ async function callDeepSeek(messages, { timeoutMs = 20000 } = {}) {
           messages,
           response_format: { type: 'json_object' },
           temperature: 0.4,
-          max_tokens: 4000
+          max_tokens: maxTokens,
+          // V4 默认开思考链，会先闷头推理再给 JSON，追问轮体感会到十几秒
+          thinking: { type: 'disabled' }
         }),
         signal: controller.signal
       })
 
       if (!response.ok) {
-        const body = await response.text()
+        await response.text()
         throw new DeepSeekError(
           `DeepSeek 请求失败：${response.status}`,
           response.status === 401 ? 'DEEPSEEK_AUTH_FAILED' : 'DEEPSEEK_HTTP_ERROR',
@@ -65,12 +74,13 @@ async function callDeepSeek(messages, { timeoutMs = 20000 } = {}) {
       }
     } catch (error) {
       if (error.name === 'AbortError') {
-        lastError = new DeepSeekError('DeepSeek 请求超时', 'DEEPSEEK_TIMEOUT', 504)
-      } else if (error instanceof DeepSeekError) {
-        lastError = error
+        throw new DeepSeekError('DeepSeek 请求超时', 'DEEPSEEK_TIMEOUT', 504)
+      }
+      if (error instanceof DeepSeekError) {
         if (error.code === 'DEEPSEEK_AUTH_FAILED' || error.code === 'DEEPSEEK_NOT_CONFIGURED') {
           throw error
         }
+        lastError = error
       } else {
         lastError = new DeepSeekError('DeepSeek 网络请求失败', 'DEEPSEEK_NETWORK_ERROR', 502)
       }
@@ -86,5 +96,6 @@ module.exports = {
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   DeepSeekError,
-  callDeepSeek
+  callDeepSeek,
+  llmBudget
 }

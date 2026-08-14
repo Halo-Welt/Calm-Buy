@@ -14,6 +14,7 @@ const cloudStub = {
   DYNAMIC_CURRENT_ENV: 'test-env',
   init() {},
   getWXContext: () => ({ OPENID: 'openid_test' }),
+  uploadFile: async ({ cloudPath }) => ({ fileID: `cloud://test/${cloudPath}` }),
   database: () => ({
     command: { inc: (step) => step },
     serverDate: () => new Date(),
@@ -102,21 +103,40 @@ const MODEL_QUESTION = {
 let searchCalls = 0
 let deepSeekCalls = 0
 let modelOutput = MODEL_RESULT
+/** 单个用例可以覆盖检索返回，用来验证价格锚点这类依赖真实报价的逻辑 */
+let searchResults = null
 
-function jsonResponse(body) {
-  return { ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) }
+function jsonResponse(body, extra = {}) {
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: (name) => extra.headers?.[String(name).toLowerCase()] || extra.headers?.[name] || '' },
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+    arrayBuffer: async () => extra.buffer || Buffer.from(JSON.stringify(body))
+  }
 }
 
 global.fetch = async (url) => {
-  if (String(url).includes('tavily')) {
+  const href = String(url)
+  if (href.includes('tavily')) {
     searchCalls += 1
+    if (searchResults) return jsonResponse(searchResults)
     return jsonResponse({
       results: [{
         title: '泡面选购指南',
         url: 'https://example.com/noodle',
         content: '常见箱装售价约 35 到 70 元',
         score: 0.9
-      }]
+      }],
+      images: ['https://cdn.example.com/headphone.jpg']
+    })
+  }
+
+  if (href.includes('cdn.example.com')) {
+    return jsonResponse({}, {
+      headers: { 'content-type': 'image/jpeg' },
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9])
     })
   }
 
@@ -148,6 +168,7 @@ test('健康检查如实反映 DeepSeek 与搜索的配置状态', async () => {
   assert.equal(response.ok, true)
   assert.equal(response.data.deepseekConfigured, true)
   assert.equal(response.data.searchEnabled, true)
+  assert.equal(response.data.tavilyConfigured, true)
 })
 
 test('不符合约定的请求被拒绝，不会打到模型', async () => {
@@ -167,6 +188,7 @@ test('最终轮会联网检索，并把来源带回给前端', async () => {
   assert.equal(response.data.mode, 'live')
   assert.ok(searchCalls > 0, '最终轮必须真的发起检索')
   assert.equal(response.data.searchUsed, true)
+  assert.equal(response.data.searchProvider, 'tavily')
   assert.ok(response.data.searchSources.length > 0)
   assert.equal(response.data.result.marketSnapshot.priceRange, '约 35–70 元')
   assert.equal(response.data.result.confidence, 'high')
@@ -180,9 +202,13 @@ test('追问轮不检索，也不谎报价格', async (t) => {
   const response = await cloudFunction.main({
     payload: payload({
       productText: '降噪耳机',
-      questionCount: 0,
+      questionCount: 1,
       draft: { decisionTier: 'standard' },
-      messages: [{ role: 'user', content: '我想买：降噪耳机' }]
+      messages: [
+        { role: 'user', content: '我想买：降噪耳机' },
+        { role: 'assistant', content: '抛开这件商品，你最想解决的具体麻烦是什么？' },
+        { role: 'user', content: '通勤时太吵了' }
+      ]
     })
   })
 
@@ -190,6 +216,27 @@ test('追问轮不检索，也不谎报价格', async (t) => {
   assert.equal(response.data.searchUsed, false)
   assert.equal(response.data.phase, 'clarify_need')
   assert.equal(response.data.result, null)
+})
+
+test('有明确商品的首轮会检索，并把配图带回', async (t) => {
+  modelOutput = MODEL_QUESTION
+  t.after(() => { modelOutput = MODEL_RESULT })
+  searchCalls = 0
+
+  const response = await cloudFunction.main({
+    payload: payload({
+      productText: '降噪耳机',
+      questionCount: 0,
+      draft: { decisionTier: 'standard' },
+      messages: [{ role: 'user', content: '我想买：降噪耳机' }]
+    })
+  })
+
+  assert.ok(searchCalls > 0, '首轮对非快消商品必须先检索')
+  assert.equal(response.data.searchUsed, true)
+  assert.equal(response.data.phase, 'clarify_need')
+  assert.equal(response.data.images.length, 1)
+  assert.match(response.data.images[0].url, /^cloud:\/\//)
 })
 
 test('冲动温度会随请求进入云函数并放宽一轮追问', async (t) => {
@@ -216,6 +263,38 @@ test('冲动温度会随请求进入云函数并放宽一轮追问', async (t) =
     })
   })
   assert.equal(hot.data.progress.total, 4)
+})
+
+test('首轮按检索到的真实报价定档，模型判错也会被纠正', async (t) => {
+  modelOutput = {
+    ...MODEL_QUESTION,
+    draft: undefined,
+    draftPatch: { rootNeed: '在家躺着看大屏', readiness: 0.3, decisionTier: 'trivial' }
+  }
+  searchResults = {
+    results: [
+      { title: '京东报价', url: 'https://item.jd.com/1.html', content: '售价 19800 元' },
+      { title: '天猫', url: 'https://detail.tmall.com/2.html', content: '到手 20800 元' }
+    ],
+    images: []
+  }
+  t.after(() => {
+    modelOutput = MODEL_RESULT
+    searchResults = null
+  })
+
+  const response = await cloudFunction.main({
+    payload: payload({
+      productText: '很贵的未来眼镜',
+      questionCount: 0,
+      draft: {},
+      messages: [{ role: 'user', content: '我想买：很贵的未来眼镜' }]
+    })
+  })
+
+  assert.equal(response.data.draft.decisionTier, 'major', '两万块的东西不能按小额决策问一轮就结束')
+  assert.equal(response.data.progress.total, 5)
+  assert.equal(response.data.draft.rootNeed, '在家躺着看大屏')
 })
 
 test('模型调用失败时返回可渲染的兜底结果，而不是错误', async () => {

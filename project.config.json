@@ -2,7 +2,12 @@
   "description": "Calm Buy 微信小程序 MVP",
   "packOptions": {
     "ignore": [],
-    "include": []
+    "include": [
+      {
+        "type": "folder",
+        "value": "assets/tabbar"
+      }
+    ]
   },
   "setting": {
     "bundle": false,
@@ -10,6 +15,8 @@
     "minified": true,
     "postcss": true,
     "urlCheck": false,
+    "ignoreDevUnusedFiles": false,
+    "ignoreUploadUnusedFiles": false,
     "minifyWXML": true,
     "compileWorklet": false,
     "uglifyFileName": false,

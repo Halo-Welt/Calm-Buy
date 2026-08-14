@@ -1,3 +1,7 @@
+.page {
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+}
+
 .about-title {
   color: #1648d8;
   font-family: "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -19,7 +23,7 @@
 
 .principle {
   display: grid;
-  grid-template-columns: 92rpx 1fr;
+  grid-template-columns: 112rpx 1fr;
   gap: 22rpx;
   margin-bottom: 18rpx;
   padding: 24rpx;
@@ -28,16 +32,11 @@
   background: #fffdf8;
 }
 
-.principle:nth-child(2) {
-  background: #ddff32;
-  transform: rotate(1deg);
-}
-
 .principle-mark {
   color: #1648d8;
-  font-size: 24rpx;
+  font-size: 34rpx;
   font-weight: 1000;
-  letter-spacing: 1rpx;
+  line-height: 1.2;
 }
 
 .principle-title {

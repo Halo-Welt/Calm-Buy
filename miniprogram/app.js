@@ -3,7 +3,8 @@ const { CLOUD_ENV_ID } = require('./config')
 App({
   globalData: {
     currentSession: null,
-    lastResult: null
+    lastResult: null,
+    tabBarSelected: 0
   },
 
   onLaunch() {

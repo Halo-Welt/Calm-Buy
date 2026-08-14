@@ -9,7 +9,7 @@ alwaysApply: true
 - 建议可以是：可买 / 先等等 / 不建议买当前这个 / 有更合适或更平价的替代。
 - 不要默认「反导购劝停腔」；可以明确建议购买，只要依据充分。
 - 澄清交互以选项为主；每轮给 2–3 个具体选项，并保留「我想自己补充」。只有用户选择自行补充时才展示自由输入。
-- 未联网时禁止伪造实时价格、库存、评测来源或商品直链；确认需求后可通过联网搜索注入摘要。
+- 未联网时禁止伪造实时价格、库存、评测来源或商品直链。非快消商品第一轮先搜索再提问，并告知用户正在搜索；中间澄清轮不搜；最终轮再搜一次带上已确认需求。
 - 搜索：优先豆包 Global（`DOUBAO_SEARCH_API_KEY`），额度不足回退 Tavily（`TAVILY_API_KEY`）；`SEARCH_PROVIDER=auto|doubao|tavily`（写在 `server/.env`，勿提交仓库）。
 
 - 主提示词在 `server/src/prompt.js`；改完后需同步云函数：`node scripts/sync-cloud-function.js`。

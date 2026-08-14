@@ -1,3 +1,7 @@
+.page {
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+}
+
 .list-title {
   margin: 22rpx 0;
   color: #1648d8;
@@ -61,12 +65,23 @@
   font-weight: 1000;
 }
 
+.list-body-hover {
+  opacity: 0.72;
+}
+
 .item-verdict {
   margin-top: 12rpx;
   color: #41423f;
   font-size: 24rpx;
   font-weight: 700;
   line-height: 1.5;
+}
+
+.item-detail-hint {
+  margin-top: 16rpx;
+  color: #1648d8;
+  font-size: 22rpx;
+  font-weight: 900;
 }
 
 .chip.danger {

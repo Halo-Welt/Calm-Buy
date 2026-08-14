@@ -79,13 +79,19 @@
         <view class="alternative-title">{{item.title}}</view>
         <view class="alternative-price" wx:if="{{item.price}}">{{item.price}}</view>
         <view class="alternative-why">{{item.why}}</view>
+        <view
+          class="source-hint"
+          wx:if="{{item.url}}"
+          data-url="{{item.url}}"
+          catchtap="copySource"
+        >{{item.platform || '来源'}} · 复制链接</view>
         <view class="verification-note">{{item.verificationStatus}}</view>
       </view>
     </block>
 
     <block wx:if="{{result.searchSources.length}}">
       <view class="divider"></view>
-      <view class="section-label">信息来源</view>
+      <view class="section-label">{{result.searchSourceLabel || '信息来源'}}</view>
       <view
         class="source-item"
         wx:for="{{result.searchSources}}"
@@ -93,8 +99,8 @@
         data-url="{{item.url}}"
         bindtap="copySource"
       >
-        <view class="source-title">{{item.title}}</view>
-        <view class="source-hint">点一下复制链接</view>
+        <view class="source-title">{{item.platform ? item.platform + ' · ' : ''}}{{item.title}}</view>
+        <view class="source-hint">复制链接</view>
       </view>
     </block>
 
@@ -113,6 +119,7 @@
   </view>
 
   <button class="primary-button" bindtap="saveToList">{{saved ? '已在冷静记录' : '放进冷静记录'}}</button>
+  <button class="secondary-button" open-type="share">分享给朋友</button>
   <button class="secondary-button" bindtap="copySummary">复制结论</button>
   <view class="footer-actions">
     <button class="text-button" bindtap="restart">再拆一件</button>

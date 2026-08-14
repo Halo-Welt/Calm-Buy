@@ -1,14 +1,16 @@
 const cloud = require('wx-server-sdk')
 const { analyzeRequestSchema } = require('./src/schema')
 const { buildMessages } = require('./src/prompt')
-const { callDeepSeek } = require('./src/deepseek')
+const { callDeepSeek, llmBudget } = require('./src/deepseek')
 const { applyPolicy } = require('./src/policy')
 const { buildFallbackResponse } = require('./src/fallback')
-const { isFinalRound } = require('./src/questions')
+const { isFinalRound, shouldResearchNow } = require('./src/questions')
 const {
   annotateSearchMeta,
   emptySearchEvidence,
+  isDoubaoConfigured,
   isSearchConfigured,
+  isTavilyConfigured,
   researchProduct
 } = require('./src/search')
 
@@ -95,16 +97,59 @@ async function consumeQuota(openId) {
 }
 
 /**
- * 每次调用可能落在不同容器实例上，跨轮预取的内存缓存不可靠，
- * 所以只在最终轮现场检索一次——价格与口碑也正是在那一轮才真正用得上。
+ * 微信小程序不能加载任意 CDN 图片。把检索到的配图转存到云存储，
+ * 返回 cloud:// fileID；失败则回退原链接。
+ */
+async function materializeImages(images, requestId) {
+  const limited = Array.isArray(images) ? images.slice(0, 2) : []
+  if (!limited.length) return []
+
+  const uploaded = await Promise.all(limited.map(async (item, index) => {
+    const url = String(item?.url || '')
+    if (!/^https?:\/\//i.test(url)) return null
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    try {
+      const response = await fetch(url, { signal: controller.signal })
+      if (!response.ok) return null
+      const contentType = String(response.headers.get('content-type') || '')
+      if (!contentType.startsWith('image/')) return null
+      const buffer = Buffer.from(await response.arrayBuffer())
+      if (!buffer.length || buffer.length > 1.5 * 1024 * 1024) return null
+      const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
+      const { fileID } = await cloud.uploadFile({
+        cloudPath: `calm-buy/search/${requestId}/${index}.${ext}`,
+        fileContent: buffer
+      })
+      return fileID ? { url: fileID, alt: String(item.alt || '').slice(0, 80) } : null
+    } catch {
+      return null
+    } finally {
+      clearTimeout(timer)
+    }
+  }))
+
+  const ready = uploaded.filter(Boolean)
+  return ready.length ? ready : limited
+}
+
+/**
+ * 非 trivial 商品首轮先搜再问；中间澄清轮不搜；最终轮再搜一次。
+ * 云函数实例不跨轮复用，不能靠内存预取。
  */
 async function attachSearchEvidence(requestData) {
-  if (!isFinalRound(requestData) || !isSearchConfigured()) {
+  if (!isSearchConfigured() || !shouldResearchNow(requestData)) {
     return { ...requestData, searchEvidence: emptySearchEvidence() }
   }
 
   try {
-    return { ...requestData, searchEvidence: await researchProduct(requestData.productText) }
+    return {
+      ...requestData,
+      searchEvidence: await researchProduct(requestData.productText, requestData.draft, {
+        round: isFinalRound(requestData) ? 'final' : 'first'
+      })
+    }
   } catch (error) {
     console.error(JSON.stringify({
       requestId: requestData.requestId,
@@ -116,11 +161,17 @@ async function attachSearchEvidence(requestData) {
 
 async function analyze(requestData) {
   const enriched = await attachSearchEvidence(requestData)
+  const imageJob = materializeImages(enriched.searchEvidence?.images, requestData.requestId)
   const messages = buildMessages(enriched)
-  let output = await callDeepSeek(messages)
+  const budget = llmBudget(isFinalRound(requestData))
+  let output = await callDeepSeek(messages, budget)
 
   try {
-    return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
+    const images = await imageJob
+    return annotateSearchMeta(
+      applyPolicy(output, enriched),
+      { ...enriched.searchEvidence, images }
+    )
   } catch (validationError) {
     output = await callDeepSeek([
       ...messages,
@@ -128,8 +179,12 @@ async function analyze(requestData) {
         role: 'system',
         content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
       }
-    ])
-    return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
+    ], budget)
+    const images = await imageJob
+    return annotateSearchMeta(
+      applyPolicy(output, enriched),
+      { ...enriched.searchEvidence, images }
+    )
   }
 }
 
@@ -143,7 +198,9 @@ exports.main = async (event) => {
       ok: true,
       data: {
         deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
-        searchEnabled: isSearchConfigured()
+        searchEnabled: isSearchConfigured(),
+        doubaoConfigured: isDoubaoConfigured(),
+        tavilyConfigured: isTavilyConfigured()
       }
     }
   }
@@ -185,6 +242,8 @@ exports.main = async (event) => {
       requestId: parsed.data.requestId,
       phase: parsed.data.phase,
       mode: 'live',
+      searchUsed: Boolean(result.searchUsed),
+      searchProvider: result.searchProvider || null,
       durationMs: Date.now() - startedAt
     }))
     return { ok: true, data: { ...result, mode: 'live', error: null } }

@@ -6,8 +6,14 @@ page {
 }
 
 button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   min-height: 88rpx;
+  padding: 0 24rpx;
   border-radius: 22rpx;
+  line-height: 1.15;
   font-size: 30rpx;
   font-weight: 900;
 }
@@ -64,7 +70,7 @@ button::after {
   min-height: 104rpx;
   margin-top: 24rpx;
   border: 5rpx solid #101619;
-  padding: 13rpx 24rpx;
+  padding: 0 24rpx;
   background: #1648d8;
   box-shadow: 8rpx 8rpx 0 #101619;
   color: #ffffff;
@@ -78,17 +84,20 @@ button::after {
   min-height: 96rpx;
   margin-top: 22rpx;
   border: 5rpx solid #101619;
-  padding: 13rpx 24rpx;
+  padding: 0 24rpx;
   background: #fffdf8;
   box-shadow: 6rpx 6rpx 0 #101619;
   color: #101619;
 }
 
 .text-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 88rpx;
   min-height: 88rpx;
   margin: 0;
-  padding: 12rpx;
+  padding: 0 12rpx;
   background: transparent;
   color: #1648d8;
   font-size: 28rpx;
@@ -130,15 +139,19 @@ button::after {
 }
 
 .chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 72rpx;
   margin: 0;
   border: 3rpx solid #101619;
   border-radius: 999rpx;
-  padding: 9rpx 20rpx;
+  padding: 0 20rpx;
   background: #fffdf8;
   color: #101619;
   font-size: 24rpx;
   font-weight: 900;
+  line-height: 1.15;
 }
 
 .meta-row {

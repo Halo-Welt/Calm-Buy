@@ -17,9 +17,34 @@
       wx:key="index"
       class="message {{item.role}}"
       id="{{index === messages.length - 1 && !loading ? 'last-message' : ''}}"
-    >{{item.content}}</view>
+    >
+      <view wx:if="{{item.blocks && item.blocks.length}}" class="message-copy">
+        <view
+          wx:for="{{item.blocks}}"
+          wx:for-item="block"
+          wx:for-index="blockIndex"
+          wx:key="blockIndex"
+          class="message-block {{block.kind}}"
+        >{{block.text}}</view>
+      </view>
+      <view wx:else>{{item.content}}</view>
+      <view class="message-images" wx:if="{{item.images && item.images.length}}">
+        <image
+          wx:for="{{item.images}}"
+          wx:for-item="pic"
+          wx:for-index="picIndex"
+          wx:key="picIndex"
+          class="message-image"
+          src="{{pic.url}}"
+          mode="aspectFill"
+          data-url="{{pic.url}}"
+          bindtap="previewImage"
+          show-menu-by-longpress="{{true}}"
+        />
+      </view>
+    </view>
     <view class="message assistant loading-message" id="last-message" wx:if="{{loading}}">
-      正在继续往下拆…
+      {{loadingText}}
     </view>
   </scroll-view>
 
@@ -31,8 +56,8 @@
     </view>
   </view>
 
-  <view class="composer" wx:if="{{!errorMessage}}">
-    <block wx:if="{{phase === 'clarify_need'}}">
+  <view class="composer" wx:if="{{!errorMessage && !loading}}">
+    <block wx:if="{{phase === 'clarify_need' || showTextInput}}">
       <view class="chip-row" wx:if="{{options.length && !showTextInput}}">
         <button
           class="chip"
@@ -48,7 +73,7 @@
         <textarea
           class="field answer-field"
           maxlength="500"
-          placeholder="补充一句真实情况…"
+          placeholder="{{phase === 'confirm_need' ? '说说你真正想解决的事…' : '补充一句真实情况…'}}"
           value="{{inputValue}}"
           bindinput="onInput"
           disabled="{{loading}}"
@@ -68,7 +93,7 @@
       </view>
     </block>
 
-    <view class="confirm-actions" wx:if="{{phase === 'confirm_need'}}">
+    <view class="confirm-actions" wx:if="{{phase === 'confirm_need' && !showTextInput}}">
       <button class="primary-button" data-value="yes" bindtap="confirmNeed" disabled="{{loading}}">对，就是这个</button>
       <button class="secondary-button" data-value="no" bindtap="confirmNeed" disabled="{{loading}}">不对，我补充</button>
     </view>
