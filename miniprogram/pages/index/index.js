@@ -26,10 +26,13 @@ Page({
     meterWidth: 0,
     temperatureLevel: 'calm',
     temperatureHint: '没发现冲动信号',
-    factors: []
+    factors: [],
+    showConsent: false
   },
 
   onShow() {
+    // 遮罩盖不住原生 tabBar，用户可以带着弹窗切页，回来时不该看到残留
+    if (this.data.showConsent) this.setData({ showConsent: false })
     this.clearTimers()
     this.loadCooldown()
     this.tickCountdown()
@@ -112,63 +115,63 @@ Page({
       return
     }
 
-    const beginAnalysis = () => {
-      // chat 页读不到 currentProduct 会直接弹回首页，所以这一步失败必须让用户看见
-      try {
-        wx.setStorageSync('currentProduct', productText)
-      } catch (error) {
-        wx.showModal({
-          title: '无法保存这次输入',
-          content: error.message || '本机存储写入失败',
-          showCancel: false
-        })
-        return
-      }
-
-      // 冲动信号是附加功能，记不上也不该挡住跳转
-      try {
-        const impulse = collectSignals(productText)
-        wx.setStorageSync(IMPULSE_KEY, {
-          temperature: impulse.temperature,
-          signals: impulse.factors.map((item) => item.label)
-        })
-        // 本次查询要在快照之后才计入历史，否则会把自己算成一次重复
-        recordInput(productText)
-      } catch (error) {
-        console.error('[Calm Buy] 记录冲动信号失败', error)
-      }
-
-      wx.navigateTo({
-        url: '/pages/chat/chat',
-        fail: (error) => {
-          wx.showModal({
-            title: '打开对话失败',
-            content: error.errMsg || '未知原因',
-            showCancel: false
-          })
-        }
-      })
-    }
-
     if (wx.getStorageSync('calm_buy_ai_consent_v1')) {
-      beginAnalysis()
+      this.runAnalysis(productText)
       return
     }
 
-    wx.showModal({
-      title: '开始智能分析',
-      content: '你的回答会发送至服务端和 DeepSeek 用于本次分析；冷静记录仍只保存在本机。',
-      // 真机限制 confirmText / cancelText 最多 4 个汉字，超了整个弹窗都不显示
-      confirmText: '同意继续',
-      cancelText: '暂不使用',
-      success(result) {
-        if (!result.confirm) return
-        wx.setStorageSync('calm_buy_ai_consent_v1', true)
-        beginAnalysis()
-      },
-      // 这道闸门一旦静默失败，用户会卡在首页且毫无线索
+    // 自定义弹窗不像原生 modal 会自动收起键盘
+    wx.hideKeyboard()
+    this.setData({ showConsent: true })
+  },
+
+  acceptConsent() {
+    this.setData({ showConsent: false })
+    wx.setStorageSync('calm_buy_ai_consent_v1', true)
+    this.runAnalysis(this.data.productText.trim())
+  },
+
+  declineConsent() {
+    this.setData({ showConsent: false })
+  },
+
+  /** 挡住遮罩上的滚动穿透 */
+  noop() {},
+
+  runAnalysis(productText) {
+    // chat 页读不到 currentProduct 会直接弹回首页，所以这一步失败必须让用户看见
+    try {
+      wx.setStorageSync('currentProduct', productText)
+    } catch (error) {
+      wx.showModal({
+        title: '无法保存这次输入',
+        content: error.message || '本机存储写入失败',
+        showCancel: false
+      })
+      return
+    }
+
+    // 冲动信号是附加功能，记不上也不该挡住跳转
+    try {
+      const impulse = collectSignals(productText)
+      wx.setStorageSync(IMPULSE_KEY, {
+        temperature: impulse.temperature,
+        signals: impulse.factors.map((item) => item.label)
+      })
+      // 本次查询要在快照之后才计入历史，否则会把自己算成一次重复
+      recordInput(productText)
+    } catch (error) {
+      console.error('[Calm Buy] 记录冲动信号失败', error)
+    }
+
+    wx.navigateTo({
+      url: '/pages/chat/chat',
       fail: (error) => {
-        wx.showToast({ title: `授权框异常：${error.errMsg}`, icon: 'none', duration: 4000 })
+        wx.showModal({
+          title: '打开对话失败',
+          content: error.errMsg || '未知原因',
+          showCancel: false
+        })
       }
     })
   }

@@ -1,6 +1,6 @@
 <view class="page chat-page">
   <view class="chat-header">
-    <view>
+    <view class="chat-heading">
       <view class="eyebrow">第一性原理拆解</view>
       <view class="product-name">{{productText}}</view>
     </view>

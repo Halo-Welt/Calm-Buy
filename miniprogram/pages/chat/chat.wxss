@@ -23,13 +23,21 @@
   white-space: nowrap;
 }
 
+.chat-heading {
+  min-width: 0;
+}
+
 .progress {
-  max-width: 220rpx;
+  flex: none;
+  max-width: 340rpx;
+  overflow: hidden;
   color: #1648d8;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 24rpx;
   font-weight: 900;
   text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 

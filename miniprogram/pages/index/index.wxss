@@ -38,13 +38,14 @@
 .display-art {
   display: block;
   width: 100%;
-  margin: 18rpx 0 0;
+  /* 图片自带约 37rpx 的米色留白，负边距收掉，否则和分隔线之间会空出一大段 */
+  margin: 10rpx 0 -30rpx;
 }
 
 .marker-line {
   width: 100%;
   height: 14rpx;
-  margin: 18rpx 0 18rpx;
+  margin: 10rpx 0 14rpx;
   background: #1648d8;
   clip-path: polygon(0 20%, 100% 0, 98% 72%, 2% 100%);
 }
@@ -53,7 +54,7 @@
 .meter-card,
 .input-card {
   position: relative;
-  margin-top: 22rpx;
+  margin-top: 40rpx;
   border: 5rpx solid #101619;
   border-radius: 28rpx;
   background: #fffdf8;
@@ -181,6 +182,8 @@
 }
 
 .input-card {
+  /* 额外补偿 .card-tab 向上溢出的 24rpx，避免标签压到上一张卡片 */
+  margin-top: 62rpx;
   padding: 26rpx 16rpx 16rpx;
 }
 
@@ -217,5 +220,85 @@
   background: #ddff32;
   color: #101619;
   font-size: 34rpx;
+}
+
+.consent-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: rgba(16, 22, 25, 0.55);
+}
+
+.consent-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 600rpx;
+  box-sizing: border-box;
+  padding: 44rpx 36rpx 36rpx;
+  border: 6rpx solid #101619;
+  border-radius: 32rpx;
+  background: #fffdf8;
+  box-shadow: 14rpx 14rpx 0 #101619;
+  animation: consent-pop 180ms ease-out;
+}
+
+@keyframes consent-pop {
+  from {
+    opacity: 0;
+    transform: translateY(26rpx) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.consent-tab {
+  position: absolute;
+  top: -24rpx;
+  left: 28rpx;
+  padding: 9rpx 22rpx;
+  border-radius: 999rpx;
+  background: #101619;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 1000;
+}
+
+.consent-title {
+  font-size: 46rpx;
+  font-weight: 1000;
+  letter-spacing: -2rpx;
+  line-height: 1.1;
+  -webkit-text-stroke: 2rpx #101619;
+}
+
+.consent-body {
+  margin-top: 20rpx;
+  color: #41423f;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.consent-confirm {
+  margin-top: 34rpx;
+}
+
+.consent-decline {
+  margin-top: 18rpx;
+}
+
+.consent-confirm-hover,
+.consent-decline-hover {
+  box-shadow: 2rpx 2rpx 0 #101619;
+  transform: translate(6rpx, 6rpx);
 }
 

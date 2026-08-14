@@ -56,4 +56,24 @@
     hover-stay-time="80"
     bindtap="start"
   >开始冷静 <text>➜</text></button>
+
+  <view class="consent-mask" wx:if="{{showConsent}}" catchtouchmove="noop">
+    <view class="consent-dialog">
+      <view class="consent-tab">隐私提醒 ▶</view>
+      <view class="consent-title">开始智能分析</view>
+      <view class="consent-body">你的回答会发送至服务端和 DeepSeek 用于本次分析；冷静记录仍只保存在本机。</view>
+      <button
+        class="primary-button consent-confirm"
+        hover-class="consent-confirm-hover"
+        hover-stay-time="80"
+        bindtap="acceptConsent"
+      >同意继续</button>
+      <button
+        class="secondary-button consent-decline"
+        hover-class="consent-decline-hover"
+        hover-stay-time="80"
+        bindtap="declineConsent"
+      >暂不使用</button>
+    </view>
+  </view>
 </view>
