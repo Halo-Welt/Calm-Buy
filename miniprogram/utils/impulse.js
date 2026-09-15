@@ -75,6 +75,19 @@ function findActiveCooldown(now = Date.now()) {
   return coolings.reduce((latest, item) => (item.createdAt > latest.createdAt ? item : latest))
 }
 
+function findReviewDue(now = Date.now()) {
+  const list = wx.getStorageSync('calmList')
+  if (!Array.isArray(list)) return null
+  return list
+    .filter((item) => item && !item.review48h)
+    .map((item) => ({
+      ...item,
+      endAt: Number(item.createdAt) + (Number(item.cooldownHours) || 48) * 3600 * 1000
+    }))
+    .filter((item) => Number.isFinite(item.endAt) && item.endAt <= now)
+    .sort((a, b) => b.endAt - a.endAt)[0] || null
+}
+
 function collectSignals(productText, now = Date.now()) {
   const factors = []
   const hour = new Date(now).getHours()
@@ -138,5 +151,6 @@ function collectSignals(productText, now = Date.now()) {
 module.exports = {
   collectSignals,
   findActiveCooldown,
+  findReviewDue,
   recordInput
 }

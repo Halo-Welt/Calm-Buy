@@ -2,11 +2,14 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { adaptResult } = require('../miniprogram/utils/resultAdapter')
 const { buildClientFallback } = require('../miniprogram/utils/fallback')
+const { dueReviewStage } = require('../miniprogram/utils/review')
 
 test('live 结果映射为当前结果页字段且标记未联网核验', () => {
   const result = adaptResult({
     verdict: 'wait',
     confidence: 'medium',
+    needClarity: 'high',
+    evidenceQuality: 'low',
     needSentence: '想在床上舒适看大屏',
     primaryNeedId: 'utility',
     matchScore: 'medium',
@@ -31,19 +34,25 @@ test('live 结果映射为当前结果页字段且标记未联网核验', () => 
       why: '无需佩戴',
       servesNeedId: 'utility',
       verificationStatus: '模型常识，未联网核验',
-      price: null,
-      url: null
+      price: '1999 元',
+      url: 'https://example.com/buy'
     }],
     nextStep: '先体验',
     cooldownHours: 48
   }, {
     mode: 'live',
-    productText: '未来眼镜'
+    productText: '未来眼镜',
+    analysisId: 'session_12345678'
   })
 
   assert.equal(result.verdictLabel, '先验证')
   assert.equal(result.primaryNeedLabel, '场景功能')
+  assert.equal(result.needClarityLabel, '高')
+  assert.equal(result.evidenceQualityLabel, '低')
   assert.equal(result.candidateProducts.length, 1)
+  assert.equal(result.candidateProducts[0].price, null)
+  assert.equal(result.candidateProducts[0].url, null)
+  assert.equal(result.analysisId, 'session_12345678')
   assert.match(result.reviewSummary.source_note, /没有可用联网结果|未联网核验/)
 })
 
@@ -89,4 +98,16 @@ test('客户端 fallback 不给替代或商品候选', () => {
   assert.equal(response.result.confidence, 'low')
   assert.deepEqual(response.result.alternatives, [])
   assert.deepEqual(response.result.candidateProducts, [])
+})
+
+test('48小时、7天和30天复盘按顺序在用户回来时出现', () => {
+  const day = 24 * 3600 * 1000
+  const item = { createdAt: 1000, cooldownHours: 48 }
+  assert.equal(dueReviewStage(item, 1000 + day), '')
+  assert.equal(dueReviewStage(item, 1000 + 2 * day), '48h')
+  assert.equal(dueReviewStage({ ...item, review48h: {} }, 1000 + 7 * day), '7d')
+  assert.equal(
+    dueReviewStage({ ...item, review48h: {}, review7d: {} }, 1000 + 30 * day),
+    '30d'
+  )
 })

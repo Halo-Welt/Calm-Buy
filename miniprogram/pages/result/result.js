@@ -1,4 +1,7 @@
 const { VERDICT_ART } = require('../../utils/resultAdapter')
+const { SUBSCRIBE_TEMPLATE_ID } = require('../../config')
+const { scheduleCooldownReminder } = require('../../utils/api')
+const { track } = require('../../utils/analytics')
 const { enableShareMenu, shareAppMessage, shareTimeline } = require('../../utils/share')
 
 function findStoredResult(options = {}) {
@@ -107,6 +110,44 @@ Page({
     ])
     this.setData({ saved: true })
     wx.showToast({ title: '已放进冷静记录', icon: 'success' })
+    this.requestReminder()
+  },
+
+  requestReminder() {
+    const { result } = this.data
+    const analysisId = result.analysisId || result.id
+    const trackAdded = (reminderEnabled) => track('cooldown_added', analysisId, {
+      verdict: result.verdict,
+      confidence: result.confidence,
+      reminderEnabled
+    })
+    if (!SUBSCRIBE_TEMPLATE_ID || !result.cooldownHours || !wx.requestSubscribeMessage) {
+      trackAdded(false)
+      return
+    }
+
+    wx.requestSubscribeMessage({
+      tmplIds: [SUBSCRIBE_TEMPLATE_ID],
+      success: (settings) => {
+        if (settings[SUBSCRIBE_TEMPLATE_ID] !== 'accept') {
+          trackAdded(false)
+          return
+        }
+        scheduleCooldownReminder(analysisId, result.cooldownHours)
+          .then(() => {
+            const calmList = (wx.getStorageSync('calmList') || []).map((item) => (
+              item.id === result.id ? { ...item, reminderEnabled: true } : item
+            ))
+            wx.setStorageSync('calmList', calmList)
+            trackAdded(true)
+          })
+          .catch((error) => {
+            trackAdded(false)
+            console.error('[Calm Buy] 安排提醒失败', error)
+          })
+      },
+      fail: () => trackAdded(false)
+    })
   },
 
   restart() {

@@ -12,7 +12,7 @@ const {
 const TIER_STYLE = {
   trivial: `小额低风险：买错的代价就是几十块钱，别把它当人生大事盘问。只问 1 个真正能改变结论的问题，问完立刻给建议。结论允许很干脆——想吃就买、囤货注意保质期、这个价位没什么好纠结的。`,
   standard: `中等决策：用户会用上一段时间，值得问清楚，但不要拖。三个问题按这个顺序：想解决什么麻烦、这个问题何时出现、现在怎么凑合／卡在哪。`,
-  major: `大额或长期决策：买错成本高，值得认真拆。先覆盖想达成的具体结果、发生场景和频率、现有方案的具体缺口，之后才问预算或时机。问题要具体到这个品类的使用，比如买车问用车半径和载人需求，买电脑问跑什么软件，买相机问拍什么题材。`
+  major: `大额或长期决策：买错成本高，值得认真拆。先覆盖想达成的具体结果、发生场景和频率、现有方案的具体缺口，之后确认预算是否覆盖真实价格。问题要具体到这个品类的使用，比如买车问用车半径和载人需求，买电脑问跑什么软件，买相机问拍什么题材。`
 }
 
 function buildTierBlock(request) {
@@ -28,12 +28,12 @@ ${TIER_STYLE[tier]}`
   const anchoredFromPrice = anchor && anchor.count >= 2 ? tierFromPrice(anchor.median) : null
   if (anchoredFromPrice) {
     const plan = resolvePlan(anchoredFromPrice, request.impulse?.temperature)
-    return `检索到的真实报价是 ${anchor.text}，据此判定决策量级为 ${anchoredFromPrice}（${plan.label}），最多提问 ${plan.maxQuestions} 轮。draftPatch.decisionTier 必须写 ${anchoredFromPrice}，tierReason 写价格依据，不要另判一个量级。
+    return `检索到的报价锚点是 ${anchor.text}，价格初步对应 ${anchoredFromPrice}。还要综合使用周期、退换难度、空间占用和长期承诺；若其它因素明显更重，可以提高量级但不得仅凭感觉降低。draftPatch.decisionFactors 必须写出这些因素，decisionTier 写最终量级。
 ${TIER_STYLE[anchoredFromPrice]}`
   }
 
   const plan = planForRequest(request)
-  return `这是第一轮，也没有拿到可靠报价，你必须自己判断决策量级，写进 draftPatch.decisionTier，并在 tierReason 里用一句话说明依据：
+  return `这是第一轮，也没有拿到可靠报价。你必须综合判断决策量级，写进 draftPatch.decisionTier、decisionFactors，并在 tierReason 里用一句话说明依据：
 ${TIER_GUIDE}
 判完之后按这个节奏走：trivial 最多 1 轮，standard 最多 3 轮，major 最多 5 轮；本轮 progress.total 先按 ${plan.maxQuestions} 写。`
 }
@@ -89,6 +89,7 @@ function buildSearchBlock(request) {
   }
 
   const anchor = search.priceAnchor
+  const credibility = search.credibility || {}
   return `联网信息：已检索到关于「${request.productText}」的网页摘要（见后面的搜索摘要消息）。
 - 涉及价格、口碑、常见缺点时以摘要为准，不要凭印象编。
 - ${anchor?.text
@@ -96,10 +97,11 @@ function buildSearchBlock(request) {
     : '摘要里没有可靠价格时 marketSnapshot.priceRange 填 null，不要瞎猜。'}
 - marketSnapshot.reputation 用两三句话概括真实口碑，好评和差评都要提。
 - marketSnapshot.watchOuts 填摘要里反复出现的坑或注意事项，最多 3 条。
-- 摘要每条都标了来源平台，商品页用来取链接，社区和评测用来取差评。
+- 官方资料只用于参数，渠道页只用于价格，专业评测和社区用于实际体验。转载站和内容农场不能支撑高置信度。
 - reasons 和 candidateProducts.why 要体现这些可核对的信息。
-- 只有摘要里出现过的链接才能填进 url，否则 url=null。不要在 json 里编造图片链接，配图由服务端附上。
-- 证据充分时 confidence 可以是 high。`
+- candidateProducts 只给名称和适用理由，price/url 一律 null；来源由结果页单独展示。
+- 当前来源结构评级为 ${credibility.level || 'low'}，独立体验来源 ${credibility.independentExperienceSources || 0} 个，价格/官方来源${credibility.hasPriceSource ? '已具备' : '缺失'}。
+- 只有来源结构为 high，且摘要中的关键体验结论确实相互支持时，evidenceQuality 才能为 high。`
 }
 
 function buildAskRules() {
@@ -132,8 +134,10 @@ function buildVerdictRules() {
 - evidenceQuotes 必须是用户说过的原话，逐字摘录，不要加“用户说”这类前缀，也不要改写。
 - needDecomposition 里不适用的维度留空字符串，不要填“无”“没有”。
 - minimumExperiment 只在“先验证再买”确实有意义时给；像泡面这种直接买就行的填 null。
-- alternatives 只在真的存在更合适手段时给，type 取 non_purchase / rent_or_try / product；没有就给空数组，别硬凑。
-- 有联网摘要时 candidateProducts 至少 1 条、最多 3 条；title 用商品或店铺名，url 从摘要里的电商或评测链接原样复制。没有摘要才给空数组。
+- alternatives 只在真的存在更合适手段时给，type 只取 non_purchase / rent_or_try；具体商品放 candidateProducts。
+- candidateProducts 不是购买入口：最多 3 条，只有来源明确支持具体型号时才写型号，否则写品类；price/url 一律 null。
+- needClarity 表示需求是否拆清，evidenceQuality 表示市场信息是否可靠，不得混为一个 confidence。
+- standard/major 的 buy 必须确认 budgetFit=within；预算未知就先验证或继续问。
 - nextStep 要是一句能马上执行的话。`
 }
 
@@ -143,7 +147,7 @@ function buildVerdictRules() {
  */
 function buildDraftPatchGuide() {
   return `draftPatch 只写本轮新确认或发生变化的字段，其它一律省略，不要用空字符串覆盖已确认的内容。可用字段：
-productName / categoryLabel / keyDimensions[] / askedDimensions[] / decisionTier / tierReason / desiredOutcome / scene / frequency / currentAlternative / gap / counterfactual / constraints[] / failureConditions[] / successCriterion / functionalNeed / emotionalNeed / socialNeed / rootNeed / primaryNeedId / secondaryNeedId / evidenceQuotes[] / missingDimensions[] / readiness
+productName / categoryLabel / keyDimensions[] / askedDimensions[] / decisionTier / tierReason / decisionFactors{} / budgetFit / desiredOutcome / scene / frequency / currentAlternative / gap / counterfactual / constraints[] / failureConditions[] / successCriterion / functionalNeed / emotionalNeed / socialNeed / rootNeed / primaryNeedId / secondaryNeedId / evidenceQuotes[] / missingDimensions[] / readiness
 其中 rootNeed 和 readiness 每轮都要写。
 readiness 是 0 到 1 之间的小数（例如 0.8），不是百分数也不是十分制。
 rootNeed 是你目前对「用户到底想解决什么」的最佳概括，必须是拿掉商品名之后仍然成立的一句话，例如“通勤时把地铁噪音隔掉”；禁止写成“买一副降噪耳机”“入手 XXX”，不能留空、不能写“待确认”。确认环节会直接复述这句话。`
@@ -174,6 +178,8 @@ function buildFinalOutputSchema(plan) {
   "result": {
     "verdict": "stop | wait | buy | replace",
     "confidence": "high | medium | low",
+    "needClarity": "high | medium | low",
+    "evidenceQuality": "high | medium | low",
     "needSentence": "",
     "primaryNeedId": "utility",
     "matchScore": "high | medium | low",
@@ -194,7 +200,7 @@ function buildFinalOutputSchema(plan) {
     },
     "minimumExperiment": null,
     "alternatives": [
-      {"title": "", "why": "", "servesNeedId": "utility", "type": "non_purchase | rent_or_try | product"}
+      {"title": "", "why": "", "servesNeedId": "utility", "type": "non_purchase | rent_or_try"}
     ],
     "candidateProducts": [
       {"title": "商品名", "why": "", "servesNeedId": "utility", "price": null, "url": null}

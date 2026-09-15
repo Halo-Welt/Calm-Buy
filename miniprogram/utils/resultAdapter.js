@@ -1,8 +1,8 @@
 const VERDICT_LABELS = {
-  stop: '不建议买',
+  stop: '没必要买',
   wait: '先验证',
   buy: '可以买',
-  replace: '别买当前这个'
+  replace: '不建议买当前这个'
 }
 
 const VERDICT_ART = {
@@ -50,10 +50,26 @@ function platformFromUrl(url = '') {
 
 function withPlatform(item) {
   if (!item || typeof item !== 'object') return item
+  const sourceKindLabels = {
+    official: '官方参数',
+    shop: '渠道价格',
+    media: '专业评测',
+    community: '用户体验',
+    farm: '低可信转载',
+    general: '一般来源'
+  }
   return {
     ...item,
-    platform: item.platform || platformFromUrl(item.url)
+    platform: item.platform || platformFromUrl(item.url),
+    sourceKindLabel: sourceKindLabels[item.sourceKind] || '一般来源'
   }
+}
+
+function formatSearchTime(value) {
+  const date = value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return ''
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function searchSourceNote(usedSearch, mode, provider) {
@@ -71,7 +87,15 @@ function searchSourceNote(usedSearch, mode, provider) {
   return '结论参考了备用搜索的价格与口碑，具体成交价请自行核对'
 }
 
-function adaptResult(apiResult, { mode, productText, searchUsed = false, searchSources = [], searchProvider = '' }) {
+function adaptResult(apiResult, {
+  mode,
+  productText,
+  searchUsed = false,
+  searchSources = [],
+  searchProvider = '',
+  searchedAt = '',
+  analysisId = ''
+}) {
   const usedSearch = Boolean(searchUsed || apiResult.searchUsed)
   const provider = searchProvider || apiResult.searchProvider || ''
   const marketSnapshot = normalizeMarketSnapshot(apiResult.marketSnapshot)
@@ -82,6 +106,7 @@ function adaptResult(apiResult, { mode, productText, searchUsed = false, searchS
       marketSnapshot.priceRange || marketSnapshot.reputation || marketSnapshot.watchOuts.length
     ),
     id: `result_${Date.now().toString(36)}`,
+    analysisId,
     productText,
     mode,
     searchUsed: usedSearch,
@@ -94,12 +119,20 @@ function adaptResult(apiResult, { mode, productText, searchUsed = false, searchS
     searchSources: (searchSources.length ? searchSources : (apiResult.searchSources || []))
       .filter((item) => item && item.url)
       .map(withPlatform),
-    verdictLabel: VERDICT_LABELS[apiResult.verdict] || '先验证',
+    verdictLabel: apiResult.safetyBoundary
+      ? '不在支持范围'
+      : (VERDICT_LABELS[apiResult.verdict] || '先验证'),
     verdictArt: VERDICT_ART[apiResult.verdict] || VERDICT_ART.wait,
     confidenceLabel: CONFIDENCE_LABELS[apiResult.confidence] || '低',
+    needClarityLabel: CONFIDENCE_LABELS[apiResult.needClarity] || '低',
+    evidenceQualityLabel: CONFIDENCE_LABELS[apiResult.evidenceQuality] || '低',
     primaryNeedLabel: NEED_LABELS[apiResult.primaryNeedId] || '尚未确认',
     alternatives: apiResult.alternatives || [],
-    candidateProducts: (apiResult.candidateProducts || []).map(withPlatform),
+    candidateProducts: (apiResult.candidateProducts || []).map((item) => ({
+      ...item,
+      price: null,
+      url: null
+    })),
     evidenceQuotes: apiResult.evidenceQuotes || [],
     reviewSummary: {
       pros: [],
@@ -108,6 +141,7 @@ function adaptResult(apiResult, { mode, productText, searchUsed = false, searchS
       not_for: '',
       source_note: searchSourceNote(usedSearch, mode, provider)
     },
+    searchedAt: formatSearchTime(searchedAt || apiResult.searchedAt),
     cooldownHours: apiResult.cooldownHours ?? 48,
     createdAt: Date.now()
   }

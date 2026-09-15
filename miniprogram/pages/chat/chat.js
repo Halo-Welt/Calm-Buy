@@ -1,4 +1,5 @@
 const { analyzeStep } = require('../../utils/api')
+const { track } = require('../../utils/analytics')
 const { buildClientFallback } = require('../../utils/fallback')
 const { adaptResult } = require('../../utils/resultAdapter')
 const { clearDraft, createId, loadDraft, saveDraft } = require('../../utils/session')
@@ -54,6 +55,7 @@ function withBlocks(message) {
 Page({
   data: {
     sessionId: '',
+    startedAt: 0,
     productText: '',
     messages: [],
     inputValue: '',
@@ -100,11 +102,15 @@ Page({
 
     const initialState = {
       sessionId: createId('session'),
+      startedAt: Date.now(),
       productText,
       impulse: wx.getStorageSync('calm_buy_current_impulse_v1') || null,
       messages: [withBlocks({ role: 'user', content: `我想买：${productText}`, images: [] })]
     }
-    this.setData(initialState, () => this.requestStep())
+    this.setData(initialState, () => {
+      track('analysis_started', initialState.sessionId, { mode: 'live' })
+      this.requestStep()
+    })
   },
 
   onShow() {
@@ -127,6 +133,7 @@ Page({
   serializableState() {
     const {
       sessionId,
+      startedAt,
       productText,
       messages,
       inputValue,
@@ -144,6 +151,7 @@ Page({
     } = this.data
     return {
       sessionId,
+      startedAt,
       productText,
       messages,
       inputValue,
@@ -344,7 +352,20 @@ Page({
       productText: this.data.productText,
       searchUsed: Boolean(response.searchUsed),
       searchProvider: response.searchProvider || '',
-      searchSources: response.searchSources || []
+      searchSources: response.searchSources || [],
+      searchedAt: response.searchedAt || '',
+      analysisId: this.data.sessionId
+    })
+    const elapsed = Math.max(0, Date.now() - (this.data.startedAt || Date.now()))
+    const durationBucket = elapsed < 60000 ? 'under_1m' : elapsed < 180000 ? '1_3m' : 'over_3m'
+    track('analysis_completed', this.data.sessionId, {
+      mode: response.mode || 'fallback',
+      verdict: result.verdict,
+      confidence: result.confidence,
+      needClarity: result.needClarity,
+      evidenceQuality: result.evidenceQuality,
+      decisionTier: this.data.draft?.decisionTier || 'unknown',
+      durationBucket
     })
 
     getApp().globalData.lastResult = result

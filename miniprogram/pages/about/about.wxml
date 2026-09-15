@@ -1,7 +1,7 @@
 <view class="page">
   <view class="eyebrow">个人空间</view>
   <view class="display about-title">我的</view>
-  <view class="lead">暂不支持登录功能，持续建设中。</view>
+  <view class="lead">不登录，也不靠劝退证明自己。目标是帮你做一个以后不后悔的决定。</view>
 
   <view class="section-title">产品原则</view>
   <view class="principle-list">
@@ -16,7 +16,7 @@
       <view class="principle-mark">证据</view>
       <view>
         <view class="principle-title">不知道就说不知道</view>
-        <view class="principle-copy">无评测原文，置信度不超过「中」。</view>
+        <view class="principle-copy">需求清晰度与信息可信度分开说明。</view>
       </view>
     </view>
     <view class="principle">
@@ -41,14 +41,22 @@
       <view class="principle-mark">搜索</view>
       <view>
         <view class="principle-title">Doubao Search、Tavily</view>
-        <view class="principle-copy">确认需求后检索价格与评测。</view>
+        <view class="principle-copy">检索价格、参数和体验信息，并区分来源职责。</view>
       </view>
     </view>
   </view>
 
   <view class="section-title">隐私与数据</view>
   <view class="privacy">
-    <view class="lead">分析发至 DeepSeek，服务端不存正文。记录只留本机。</view>
+    <view class="lead">商品描述与回答会发至 DeepSeek，并在需要时发至豆包搜索或 Tavily；服务端不保存正文，冷静记录只留本机。</view>
+    <view class="lead">如果你授权一次性提醒，云端只把微信标识保存到提醒发送完成。</view>
+    <view class="lead">同意匿名改进后，只上传枚举结果、耗时和随机分析编号；不上传商品名、预算或对话。</view>
+    <view class="privacy-switch">
+      <text>参与匿名改进</text>
+      <switch checked="{{analyticsEnabled}}" bindchange="toggleAnalytics" color="#1648D8" />
+    </view>
+    <button class="text-button danger-text" bindtap="deleteAnalytics">删除匿名改进数据</button>
+    <view class="lead">匿名事件会长期保留，直到你使用本机删除凭证移除。清除小程序数据前如需删除，请先在这里操作。</view>
     <view class="lead">AI 判断仅供参考，价格请自行核对。</view>
   </view>
 

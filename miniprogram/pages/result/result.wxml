@@ -7,11 +7,17 @@
     aria-label="{{result.verdictLabel}}"
   />
   <view class="verdict-rule {{result.verdict}}"></view>
+  <view class="boundary-note" wx:if="{{result.safetyBoundary}}">{{result.boundaryReason}}</view>
 
   <view class="receipt result-card">
     <view class="section-label">你真正想要的是</view>
     <view class="need-sentence">{{result.rootNeed || result.needSentence}}</view>
     <view class="need-tag">{{result.primaryNeedLabel}}</view>
+    <view class="confidence">
+      <view><text>需求清晰度</text><text class="confidence-value">{{result.needClarityLabel}}</text></view>
+      <view><text>信息可信度</text><text class="confidence-value">{{result.evidenceQualityLabel}}</text></view>
+      <view><text>建议强度</text><text class="confidence-value">{{result.confidenceLabel}}</text></view>
+    </view>
 
     <view class="divider"></view>
     <view class="section-label">你的原话</view>
@@ -77,14 +83,7 @@
       <view class="section-label">值得看的候选</view>
       <view class="candidate" wx:for="{{result.candidateProducts}}" wx:key="title">
         <view class="alternative-title">{{item.title}}</view>
-        <view class="alternative-price" wx:if="{{item.price}}">{{item.price}}</view>
         <view class="alternative-why">{{item.why}}</view>
-        <view
-          class="source-hint"
-          wx:if="{{item.url}}"
-          data-url="{{item.url}}"
-          catchtap="copySource"
-        >{{item.platform || '来源'}} · 复制链接</view>
         <view class="verification-note">{{item.verificationStatus}}</view>
       </view>
     </block>
@@ -92,6 +91,7 @@
     <block wx:if="{{result.searchSources.length}}">
       <view class="divider"></view>
       <view class="section-label">{{result.searchSourceLabel || '信息来源'}}</view>
+      <view class="source-date" wx:if="{{result.searchedAt}}">检索于 {{result.searchedAt}} · 价格与信息请自行核对</view>
       <view
         class="source-item"
         wx:for="{{result.searchSources}}"
@@ -99,7 +99,7 @@
         data-url="{{item.url}}"
         bindtap="copySource"
       >
-        <view class="source-title">{{item.platform ? item.platform + ' · ' : ''}}{{item.title}}</view>
+        <view class="source-title">{{item.sourceKindLabel}} · {{item.platform ? item.platform + ' · ' : ''}}{{item.title}}</view>
         <view class="source-hint">复制链接</view>
       </view>
     </block>
@@ -109,11 +109,6 @@
     <view class="divider"></view>
     <view class="section-label">下一步</view>
     <view class="next-step">{{result.nextStep}}</view>
-
-    <view class="confidence">
-      <text>判断置信度</text>
-      <text class="confidence-value">{{result.confidenceLabel}}</text>
-    </view>
 
     <view class="ai-disclaimer">以上判断由 AI 生成，仅供参考，不构成消费建议。价格、参数与商品信息请自行核对。</view>
   </view>

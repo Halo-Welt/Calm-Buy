@@ -13,8 +13,8 @@ class DeepSeekError extends Error {
 function llmBudget(isFinal) {
   // 追问轮只回传 draftPatch，输出短了一半，上限跟着收紧；最终轮 result 长，留足余量
   return isFinal
-    ? { timeoutMs: 22000, maxTokens: 2600 }
-    : { timeoutMs: 16000, maxTokens: 1200 }
+    ? { timeoutMs: 12000, maxTokens: 2600 }
+    : { timeoutMs: 7000, maxTokens: 1200 }
 }
 
 async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = {}) {
@@ -27,7 +27,7 @@ async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = 
   const model = process.env.DEEPSEEK_MODEL || DEFAULT_MODEL
 
   let lastError = null
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 1; attempt += 1) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
 

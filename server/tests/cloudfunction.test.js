@@ -10,15 +10,31 @@ const Module = require('node:module')
  */
 
 const usage = new Map()
+const telemetry = []
 const cloudStub = {
   DYNAMIC_CURRENT_ENV: 'test-env',
   init() {},
   getWXContext: () => ({ OPENID: 'openid_test' }),
   uploadFile: async ({ cloudPath }) => ({ fileID: `cloud://test/${cloudPath}` }),
   database: () => ({
-    command: { inc: (step) => step },
+    command: { inc: (step) => step, lte: (value) => value },
     serverDate: () => new Date(),
-    runTransaction: async (handler) => handler({ collection: () => ({ doc: makeDoc }) })
+    runTransaction: async (handler) => handler({ collection: () => ({ doc: makeDoc }) }),
+    collection: () => ({
+      add: async ({ data }) => {
+        telemetry.push(data)
+        return { _id: String(telemetry.length) }
+      },
+      where: (query) => ({
+        remove: async () => {
+          const before = telemetry.length
+          for (let i = telemetry.length - 1; i >= 0; i -= 1) {
+            if (telemetry[i].deletionHash === query.deletionHash) telemetry.splice(i, 1)
+          }
+          return { stats: { removed: before - telemetry.length } }
+        }
+      })
+    })
   })
 }
 
@@ -179,6 +195,31 @@ test('不符合约定的请求被拒绝，不会打到模型', async () => {
   assert.equal(deepSeekCalls, before)
 })
 
+test('匿名统计只保留白名单枚举，并可用删除凭证清除', async () => {
+  telemetry.length = 0
+  const deleteToken = 'delete_123456789012345678901234'
+  const recorded = await cloudFunction.main({
+    action: 'telemetry',
+    event: {
+      name: 'analysis_completed',
+      analysisId: 'analysis_12345678',
+      deleteToken,
+      properties: {
+        verdict: 'wait',
+        productText: '不应上传的商品名',
+        userText: '不应上传的对话'
+      }
+    }
+  })
+  assert.equal(recorded.ok, true)
+  assert.deepEqual(telemetry[0].properties, { verdict: 'wait' })
+
+  const deleted = await cloudFunction.main({ action: 'deleteTelemetry', deleteToken })
+  assert.equal(deleted.ok, true)
+  assert.equal(deleted.data.deleted, 1)
+  assert.equal(telemetry.length, 0)
+})
+
 test('最终轮会联网检索，并把来源带回给前端', async () => {
   searchCalls = 0
   const response = await cloudFunction.main({ payload: payload() })
@@ -191,7 +232,8 @@ test('最终轮会联网检索，并把来源带回给前端', async () => {
   assert.equal(response.data.searchProvider, 'tavily')
   assert.ok(response.data.searchSources.length > 0)
   assert.equal(response.data.result.marketSnapshot.priceRange, '约 35–70 元')
-  assert.equal(response.data.result.confidence, 'high')
+  assert.equal(response.data.result.confidence, 'medium')
+  assert.equal(response.data.result.evidenceQuality, 'medium')
 })
 
 test('追问轮不检索，也不谎报价格', async (t) => {
@@ -218,7 +260,7 @@ test('追问轮不检索，也不谎报价格', async (t) => {
   assert.equal(response.data.result, null)
 })
 
-test('有明确商品的首轮会检索，并把配图带回', async (t) => {
+test('有明确商品的首轮会检索，但不转载来源不明配图', async (t) => {
   modelOutput = MODEL_QUESTION
   t.after(() => { modelOutput = MODEL_RESULT })
   searchCalls = 0
@@ -235,8 +277,7 @@ test('有明确商品的首轮会检索，并把配图带回', async (t) => {
   assert.ok(searchCalls > 0, '首轮对非快消商品必须先检索')
   assert.equal(response.data.searchUsed, true)
   assert.equal(response.data.phase, 'clarify_need')
-  assert.equal(response.data.images.length, 1)
-  assert.match(response.data.images[0].url, /^cloud:\/\//)
+  assert.deepEqual(response.data.images, [])
 })
 
 test('冲动温度会随请求进入云函数并放宽一轮追问', async (t) => {

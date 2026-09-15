@@ -1,10 +1,17 @@
 const cloud = require('wx-server-sdk')
+const crypto = require('node:crypto')
 const { analyzeRequestSchema } = require('./src/schema')
 const { buildMessages } = require('./src/prompt')
 const { callDeepSeek, llmBudget } = require('./src/deepseek')
 const { applyPolicy } = require('./src/policy')
 const { buildFallbackResponse } = require('./src/fallback')
 const { isFinalRound, shouldResearchNow } = require('./src/questions')
+const {
+  buildAmbiguousResponse,
+  buildRestrictedResponse,
+  looksAmbiguous,
+  restrictedCategory
+} = require('./src/safety')
 const {
   annotateSearchMeta,
   emptySearchEvidence,
@@ -19,6 +26,14 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const command = db.command
 const USAGE_COLLECTION = 'calm_buy_usage'
+const TELEMETRY_COLLECTION = 'calm_buy_telemetry'
+const REMINDER_COLLECTION = 'calm_buy_reminders'
+const TELEMETRY_EVENTS = new Set([
+  'analysis_started',
+  'analysis_completed',
+  'cooldown_added',
+  'review_completed'
+])
 
 function numberFromEnv(name, fallback) {
   const value = Number(process.env[name])
@@ -74,64 +89,156 @@ async function consumeQuota(openId) {
   const perDay = numberFromEnv('USER_DAILY_REQUEST_LIMIT', 60)
   const globalPerDay = numberFromEnv('GLOBAL_DAILY_REQUEST_LIMIT', 1000)
 
+  const salt = process.env.RATE_LIMIT_SALT || 'calm-buy-rate-limit'
+  const dailyUser = crypto
+    .createHash('sha256')
+    .update(`${salt}:${dateKey(now)}:${openId}`)
+    .digest('hex')
+
   await db.runTransaction(async (transaction) => {
+    const expiresAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)
     await incrementUsage(
       transaction,
-      `minute_${openId}_${minuteKey(now)}`,
+      `minute_${dailyUser}_${minuteKey(now)}`,
       perMinute,
-      { scope: 'user_minute', openId, bucket: minuteKey(now) }
+      { scope: 'user_minute', bucket: minuteKey(now), expiresAt }
     )
     await incrementUsage(
       transaction,
-      `day_${openId}_${dateKey(now)}`,
+      `day_${dailyUser}_${dateKey(now)}`,
       perDay,
-      { scope: 'user_day', openId, bucket: dateKey(now) }
+      { scope: 'user_day', bucket: dateKey(now), expiresAt }
     )
     await incrementUsage(
       transaction,
       `global_${dateKey(now)}`,
       globalPerDay,
-      { scope: 'global_day', bucket: dateKey(now) }
+      { scope: 'global_day', bucket: dateKey(now), expiresAt }
     )
   })
 }
 
-/**
- * 微信小程序不能加载任意 CDN 图片。把检索到的配图转存到云存储，
- * 返回 cloud:// fileID；失败则回退原链接。
- */
-async function materializeImages(images, requestId) {
-  const limited = Array.isArray(images) ? images.slice(0, 2) : []
-  if (!limited.length) return []
+function telemetryHash(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex')
+}
 
-  const uploaded = await Promise.all(limited.map(async (item, index) => {
-    const url = String(item?.url || '')
-    if (!/^https?:\/\//i.test(url)) return null
+function cleanTelemetryProperties(properties = {}) {
+  const allowedKeys = new Set([
+    'mode', 'verdict', 'confidence', 'needClarity', 'evidenceQuality',
+    'decisionTier', 'durationBucket', 'reminderEnabled', 'reviewStage',
+    'stillAgree', 'desireChange', 'actionTaken', 'regretExpectation'
+  ])
+  return Object.fromEntries(
+    Object.entries(properties)
+      .filter(([key, value]) => allowedKeys.has(key) && ['string', 'boolean', 'number'].includes(typeof value))
+      .map(([key, value]) => [key, typeof value === 'string' ? value.slice(0, 40) : value])
+  )
+}
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 5000)
-    try {
-      const response = await fetch(url, { signal: controller.signal })
-      if (!response.ok) return null
-      const contentType = String(response.headers.get('content-type') || '')
-      if (!contentType.startsWith('image/')) return null
-      const buffer = Buffer.from(await response.arrayBuffer())
-      if (!buffer.length || buffer.length > 1.5 * 1024 * 1024) return null
-      const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
-      const { fileID } = await cloud.uploadFile({
-        cloudPath: `calm-buy/search/${requestId}/${index}.${ext}`,
-        fileContent: buffer
-      })
-      return fileID ? { url: fileID, alt: String(item.alt || '').slice(0, 80) } : null
-    } catch {
-      return null
-    } finally {
-      clearTimeout(timer)
+async function recordTelemetry(event) {
+  if (!TELEMETRY_EVENTS.has(event?.name)) {
+    return { ok: false, error: { code: 'INVALID_EVENT', message: '匿名事件不受支持' } }
+  }
+  if (!/^[a-zA-Z0-9_-]{12,100}$/.test(String(event.analysisId || ''))
+    || !/^[a-zA-Z0-9_-]{20,200}$/.test(String(event.deleteToken || ''))) {
+    return { ok: false, error: { code: 'INVALID_EVENT', message: '匿名事件字段无效' } }
+  }
+  await db.collection(TELEMETRY_COLLECTION).add({
+    data: {
+      deletionHash: telemetryHash(event.deleteToken),
+      analysisId: String(event.analysisId),
+      name: event.name,
+      properties: cleanTelemetryProperties(event.properties),
+      createdAt: db.serverDate()
     }
-  }))
+  })
+  return { ok: true, data: { recorded: true } }
+}
 
-  const ready = uploaded.filter(Boolean)
-  return ready.length ? ready : limited
+async function deleteTelemetry(deleteToken) {
+  if (!/^[a-zA-Z0-9_-]{20,200}$/.test(String(deleteToken || ''))) {
+    return { ok: false, error: { code: 'INVALID_DELETE_TOKEN', message: '删除凭证无效' } }
+  }
+  const deletionHash = telemetryHash(deleteToken)
+  let deleted = 0
+  for (let batch = 0; batch < 100; batch += 1) {
+    const result = await db.collection(TELEMETRY_COLLECTION)
+      .where({ deletionHash })
+      .remove()
+    const removed = result.stats?.removed || 0
+    deleted += removed
+    if (!removed) break
+  }
+  return { ok: true, data: { deleted } }
+}
+
+async function scheduleReminder(reminder, openId) {
+  if (!process.env.REMINDER_TEMPLATE_ID) {
+    return { ok: false, error: { code: 'REMINDER_NOT_CONFIGURED', message: '提醒模板未配置' } }
+  }
+  const hours = Math.min(168, Math.max(1, Number(reminder?.cooldownHours) || 48))
+  if (!/^[a-zA-Z0-9_-]{8,100}$/.test(String(reminder?.analysisId || ''))) {
+    return { ok: false, error: { code: 'INVALID_REMINDER', message: '提醒字段无效' } }
+  }
+  await db.collection(REMINDER_COLLECTION).add({
+    data: {
+      openId,
+      analysisId: String(reminder.analysisId),
+      dueAt: new Date(Date.now() + hours * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + (hours + 24) * 60 * 60 * 1000),
+      status: 'pending',
+      createdAt: db.serverDate()
+    }
+  })
+  return { ok: true, data: { scheduled: true } }
+}
+
+async function claimReminder(id) {
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const reference = transaction.collection(REMINDER_COLLECTION).doc(id)
+      const current = await reference.get()
+      if (current.data?.status !== 'pending') return false
+      await reference.update({ data: { status: 'processing' } })
+      return true
+    })
+  } catch {
+    return false
+  }
+}
+
+async function sendDueReminders() {
+  const templateId = process.env.REMINDER_TEMPLATE_ID
+  if (!templateId) return { ok: false, error: { code: 'REMINDER_NOT_CONFIGURED', message: '提醒模板未配置' } }
+
+  const due = await db.collection(REMINDER_COLLECTION)
+    .where({ dueAt: command.lte(new Date()), status: 'pending' })
+    .limit(10)
+    .get()
+
+  let sent = 0
+  for (const item of due.data || []) {
+    if (!await claimReminder(item._id)) continue
+    try {
+      await cloud.openapi.subscribeMessage.send({
+        touser: item.openId,
+        page: 'pages/list/list',
+        lang: 'zh_CN',
+        templateId,
+        miniprogramState: process.env.MINIPROGRAM_STATE || 'formal',
+        data: {
+          [process.env.REMINDER_THING_KEY || 'thing1']: { value: '你的冷静记录可以复盘了' },
+          [process.env.REMINDER_TIME_KEY || 'time2']: { value: new Date().toISOString().slice(0, 16).replace('T', ' ') }
+        }
+      })
+      sent += 1
+    } catch (error) {
+      console.error(JSON.stringify({ reminderError: error.errCode || error.message, reminderId: item._id }))
+    } finally {
+      await db.collection(REMINDER_COLLECTION).doc(item._id).remove()
+    }
+  }
+  return { ok: true, data: { sent } }
 }
 
 /**
@@ -160,31 +267,36 @@ async function attachSearchEvidence(requestData) {
 }
 
 async function analyze(requestData) {
+  const safetyText = [
+    requestData.productText,
+    ...(requestData.messages || []).filter((item) => item.role === 'user').map((item) => item.content)
+  ].join('\n')
+  const restricted = restrictedCategory(safetyText)
+  if (restricted) return buildRestrictedResponse(requestData, restricted)
+  if ((requestData.questionCount || 0) === 0 && looksAmbiguous(requestData.productText)) {
+    return buildAmbiguousResponse(requestData)
+  }
+
+  const startedAt = Date.now()
+  const deadlineMs = isFinalRound(requestData) ? 19000 : 9500
   const enriched = await attachSearchEvidence(requestData)
-  const imageJob = materializeImages(enriched.searchEvidence?.images, requestData.requestId)
   const messages = buildMessages(enriched)
   const budget = llmBudget(isFinalRound(requestData))
   let output = await callDeepSeek(messages, budget)
 
   try {
-    const images = await imageJob
-    return annotateSearchMeta(
-      applyPolicy(output, enriched),
-      { ...enriched.searchEvidence, images }
-    )
+    return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
   } catch (validationError) {
+    const remainingMs = deadlineMs - (Date.now() - startedAt)
+    if (remainingMs < 2000) throw validationError
     output = await callDeepSeek([
       ...messages,
       {
         role: 'system',
         content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
       }
-    ], budget)
-    const images = await imageJob
-    return annotateSearchMeta(
-      applyPolicy(output, enriched),
-      { ...enriched.searchEvidence, images }
-    )
+    ], { ...budget, timeoutMs: Math.min(budget.timeoutMs, remainingMs) })
+    return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
   }
 }
 
@@ -192,6 +304,10 @@ exports.main = async (event) => {
   const startedAt = Date.now()
   const wxContext = cloud.getWXContext()
   const openId = wxContext.OPENID
+
+  if (wxContext.SOURCE === 'wx_trigger') {
+    return sendDueReminders()
+  }
 
   if (event?.action === 'health') {
     return {
@@ -203,6 +319,18 @@ exports.main = async (event) => {
         tavilyConfigured: isTavilyConfigured()
       }
     }
+  }
+
+  if (event?.action === 'telemetry') {
+    return recordTelemetry(event.event)
+  }
+
+  if (event?.action === 'deleteTelemetry') {
+    return deleteTelemetry(event.deleteToken)
+  }
+
+  if (event?.action === 'scheduleReminder') {
+    return scheduleReminder(event.reminder, openId)
   }
 
   const parsed = analyzeRequestSchema.safeParse(event?.payload)

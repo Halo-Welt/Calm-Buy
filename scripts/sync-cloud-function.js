@@ -11,7 +11,8 @@ const sharedFiles = [
   'policy.js',
   'fallback.js',
   'questions.js',
-  'search.js'
+  'search.js',
+  'safety.js'
 ]
 
 fs.mkdirSync(cloudSource, { recursive: true })

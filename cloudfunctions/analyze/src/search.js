@@ -112,6 +112,11 @@ const SOURCE_TIERS = [
     re: /baijiahao\.baidu\.com|wenku\.baidu\.com|docin\.com|doc88\.com|renrendoc\.com|so\.com|sm\.cn/
   },
   {
+    kind: 'official',
+    weight: 1.2,
+    re: /apple\.com|microsoft\.com|sony\.(com|cn)|mi\.com|huawei\.com|samsung\.com|gov\.cn/
+  },
+  {
     kind: 'shop',
     weight: 1.25,
     re: /taobao\.com|tmall\.com|jd\.com|pinduoduo\.com|yangkeduo\.com|suning\.com|vip\.com|kaola\.com|apple\.com\/[a-z-]*\/shop/
@@ -132,6 +137,41 @@ function sourceTier(url = '') {
   const host = String(url).toLowerCase()
   const hit = SOURCE_TIERS.find((tier) => tier.re.test(host))
   return hit ? { kind: hit.kind, weight: hit.weight } : { kind: 'general', weight: 1 }
+}
+
+function publisherGroup(url = '') {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '')
+    const knownGroups = [
+      ['alibaba', /taobao\.com|tmall\.com/],
+      ['jd', /jd\.com/],
+      ['baidu', /baidu\.com/],
+      ['bytedance', /douyin\.com|iesdouyin/],
+      ['xiaohongshu', /xiaohongshu\.com|xhslink/]
+    ]
+    return knownGroups.find(([, pattern]) => pattern.test(host))?.[0]
+      || host.split('.').slice(-2).join('.')
+  } catch {
+    return ''
+  }
+}
+
+function assessSearchEvidence(items = []) {
+  const useful = items.filter((item) => item?.url && item.sourceKind !== 'farm')
+  const experienceGroups = new Set(
+    useful
+      .filter((item) => item.sourceKind === 'community' || item.sourceKind === 'media')
+      .map((item) => item.publisherGroup || publisherGroup(item.url))
+      .filter(Boolean)
+  )
+  const hasPriceSource = useful.some((item) => item.sourceKind === 'shop' || item.sourceKind === 'official')
+  return {
+    level: experienceGroups.size >= 2 && hasPriceSource
+      ? 'high'
+      : useful.length ? 'medium' : 'low',
+    hasPriceSource,
+    independentExperienceSources: experienceGroups.size
+  }
 }
 
 /** 「12.98 万元」这类写法必须带「万元」才认，否则「销量 10 万+」会被读成十万块 */
@@ -194,7 +234,7 @@ function extractPriceAnchor(items = []) {
   }
 }
 
-async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 8000 } = {}) {
+async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
   const apiKey = getDoubaoApiKey()
   if (!apiKey) {
     const error = new Error('未配置 DOUBAO_SEARCH_API_KEY')
@@ -216,7 +256,7 @@ async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 8000 } = 
         Query: String(query || '').slice(0, 100),
         DocCount: Math.min(Math.max(Number(maxResults) || 4, 1), 20),
         MaxSnippetLength: 800,
-        MaxImageCountPerDoc: 2
+        MaxImageCountPerDoc: 0
       }),
       signal: controller.signal
     })
@@ -285,7 +325,7 @@ async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 8000 } = 
   }
 }
 
-async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
+async function tavilySearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
   const apiKey = process.env.TAVILY_API_KEY || process.env.SEARCH_API_KEY
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -332,7 +372,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
           query,
           search_depth: 'basic',
           include_answer: false,
-          include_images: true,
+          include_images: false,
           include_raw_content: false,
           max_results: maxResults,
           topic: 'general'
@@ -358,7 +398,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 10000 } = {}) {
         query,
         search_depth: 'basic',
         include_answer: false,
-        include_images: true,
+        include_images: false,
         include_raw_content: false,
         max_results: maxResults,
         topic: 'general'
@@ -396,6 +436,7 @@ function decorateItems(items, intent) {
       rank,
       intent,
       sourceKind: tier.kind,
+      publisherGroup: publisherGroup(item.url),
       relevance: (1 / (1 + rank)) * tier.weight
     }
   })
@@ -552,6 +593,7 @@ async function researchProduct(productText, draft = {}, { round = 'first' } = {}
   const limited = interleaveByIntent(items, SUMMARY_BUDGETS[budget].maxItems)
   const images = collectImages(imageCandidates, 4)
   const priceAnchor = extractPriceAnchor(limited)
+  const credibility = assessSearchEvidence(limited)
 
   const provider = providers.has('doubao') && !providers.has('tavily')
     ? 'doubao'
@@ -567,6 +609,8 @@ async function researchProduct(productText, draft = {}, { round = 'first' } = {}
     items: limited,
     images,
     priceAnchor,
+    credibility,
+    searchedAt: new Date().toISOString(),
     summary: formatSearchSummary(limited, images, { budget, priceAnchor }),
     errors: errors.slice(0, 3),
     doubaoQuotaExhausted
@@ -581,6 +625,8 @@ function emptySearchEvidence(error) {
     items: [],
     images: [],
     priceAnchor: null,
+    credibility: { level: 'low', hasPriceSource: false, independentExperienceSources: 0 },
+    searchedAt: null,
     summary: '',
     ...(error ? { error } : {})
   }
@@ -600,17 +646,24 @@ function annotateSearchMeta(result, searchEvidence) {
       ? searchEvidence.items.filter((item) => item.url).slice(0, 6).map((item) => ({
         title: item.title,
         url: item.url,
-        platform: platformFromUrl(item.url)
+        platform: platformFromUrl(item.url),
+        sourceKind: item.sourceKind,
+        publisherGroup: item.publisherGroup
       }))
       : [],
-    images: Array.isArray(searchEvidence?.images)
-      ? searchEvidence.images.slice(0, 2)
-      : []
+    searchedAt: used ? searchEvidence.searchedAt : null,
+    sourceCredibility: searchEvidence?.credibility || {
+      level: 'low',
+      hasPriceSource: false,
+      independentExperienceSources: 0
+    },
+    images: []
   }
 }
 
 module.exports = {
   annotateSearchMeta,
+  assessSearchEvidence,
   buildSearchQueries,
   collectImages,
   doubaoGlobalSearch,
@@ -623,6 +676,7 @@ module.exports = {
   isTavilyConfigured,
   parsePrices,
   preferredProvider,
+  publisherGroup,
   researchProduct,
   snippetImages,
   sourceTier,

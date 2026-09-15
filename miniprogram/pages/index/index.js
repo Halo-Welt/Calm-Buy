@@ -1,4 +1,5 @@
-const { collectSignals, findActiveCooldown, recordInput } = require('../../utils/impulse')
+const { collectSignals, findActiveCooldown, findReviewDue, recordInput } = require('../../utils/impulse')
+const { analyticsConsent, setAnalyticsConsent } = require('../../utils/analytics')
 const { enableShareMenu, shareAppMessage, shareTimeline } = require('../../utils/share')
 const { syncTabBar } = require('../../utils/tabbar')
 
@@ -174,6 +175,7 @@ Page({
   /** 读一次 calmList 就够了：每秒去翻本机存储会把逻辑线程拖住，点击会跟着失灵 */
   loadCooldown() {
     this._cooldown = findActiveCooldown()
+    this._reviewDue = findReviewDue()
   },
 
   tickCountdown() {
@@ -182,8 +184,9 @@ Page({
     }
 
     const active = this._cooldown
-    const timerText = active ? formatCountdown(active.endAt - Date.now()) : IDLE_TIMER
-    const timerCaption = active ? active.productText : IDLE_CAPTION
+    const due = this._reviewDue
+    const timerText = active ? formatCountdown(active.endAt - Date.now()) : due ? '可复盘' : IDLE_TIMER
+    const timerCaption = active ? active.productText : due ? due.productText : IDLE_CAPTION
 
     if (timerText === this.data.timerText && timerCaption === this.data.timerCaption) return
     this.setData({ timerText, timerCaption, hasCooldown: Boolean(active) })
@@ -215,11 +218,15 @@ Page({
     wx.showModal({
       title: `冲动温度 ${temperature}°`,
       content: factors.length
-        ? `${temperature > 100 ? '已经超过 100°，温度计溢出来了。\n\n' : ''}${factors.map((item) => `+${item.points}　${item.label}`).join('\n')}`
-        : '没有发现冲动信号：不是深夜，这件东西你是第一次查，最近也没有连着想买别的。\n\n温度只看这些本机记录，不看你打了多少字。',
+        ? `${temperature > 100 ? '已经超过 100°，温度计溢出来了。\n\n' : ''}${factors.map((item) => `+${item.points}　${item.label}`).join('\n')}\n\n它只反映本机行为信号，不是心理诊断或财务评价。`
+        : '没有发现冲动信号：不是深夜，这件东西你是第一次查，最近也没有连着想买别的。\n\n温度只看这些本机记录，不是心理诊断或财务评价。',
       showCancel: false,
       confirmText: '知道了'
     })
+  },
+
+  openCooldowns() {
+    wx.switchTab({ url: '/pages/list/list' })
   },
 
   start() {
@@ -230,7 +237,7 @@ Page({
     }
 
     if (wx.getStorageSync('calm_buy_ai_consent_v1')) {
-      this.runAnalysis(productText)
+      this.askAnalyticsConsent(() => this.runAnalysis(productText))
       return
     }
 
@@ -242,7 +249,7 @@ Page({
   acceptConsent() {
     this.setData({ showConsent: false })
     wx.setStorageSync('calm_buy_ai_consent_v1', true)
-    this.runAnalysis(this.data.productText.trim())
+    this.askAnalyticsConsent(() => this.runAnalysis(this.data.productText.trim()))
   },
 
   declineConsent() {
@@ -251,6 +258,24 @@ Page({
 
   /** 挡住遮罩上的滚动穿透 */
   noop() {},
+
+  askAnalyticsConsent(done) {
+    if (analyticsConsent() !== '') {
+      done()
+      return
+    }
+    wx.showModal({
+      title: '是否参与匿名改进？',
+      content: '仅上传结论枚举、耗时和随机分析编号；不上传商品名、预算或对话原文。你可以在“我的”中删除。',
+      confirmText: '同意参与',
+      cancelText: '暂不参与',
+      success: ({ confirm }) => {
+        setAnalyticsConsent(confirm)
+        done()
+      },
+      fail: done
+    })
+  },
 
   runAnalysis(productText) {
     // chat 页读不到 currentProduct 会直接弹回首页，所以这一步失败必须让用户看见

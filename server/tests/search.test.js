@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
+  assessSearchEvidence,
   buildSearchQueries,
   collectImages,
   extractPriceAnchor,
@@ -148,5 +149,27 @@ test('配图去重并丢掉非法链接', () => {
   assert.equal(images.length, 2)
   assert.equal(images[0].url, 'https://cdn.example.com/a.jpg')
   assert.equal(images[1].url, 'https://cdn.example.com/b.jpg')
+})
+
+test('两个独立体验来源加价格来源才达到高可信', () => {
+  const result = assessSearchEvidence([
+    { url: 'https://item.jd.com/1.html', sourceKind: 'shop', publisherGroup: 'jd' },
+    { url: 'https://sspai.com/post/1', sourceKind: 'media', publisherGroup: 'sspai.com' },
+    { url: 'https://www.zhihu.com/question/1', sourceKind: 'community', publisherGroup: 'baidu' }
+  ])
+  assert.deepEqual(result, {
+    level: 'high',
+    hasPriceSource: true,
+    independentExperienceSources: 2
+  })
+})
+
+test('同一利益主体的转载不能互相抬高可信度', () => {
+  const result = assessSearchEvidence([
+    { url: 'https://www.zhihu.com/question/1', sourceKind: 'community', publisherGroup: 'baidu' },
+    { url: 'https://tieba.baidu.com/p/1', sourceKind: 'community', publisherGroup: 'baidu' }
+  ])
+  assert.equal(result.level, 'medium')
+  assert.equal(result.independentExperienceSources, 1)
 })
 

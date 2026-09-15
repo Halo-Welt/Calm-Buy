@@ -199,17 +199,6 @@
   font-weight: 1000;
 }
 
-.alternative-price {
-  display: inline-block;
-  margin-top: 10rpx;
-  padding: 6rpx 14rpx;
-  border: 3rpx solid #101619;
-  border-radius: 999rpx;
-  background: #fffdf8;
-  font-size: 24rpx;
-  font-weight: 1000;
-}
-
 .source-item {
   margin-top: 12rpx;
   padding: 18rpx 20rpx;
@@ -229,6 +218,15 @@
   color: #1648d8;
   font-size: 22rpx;
   font-weight: 900;
+}
+
+.source-date,
+.boundary-note {
+  margin-top: 14rpx;
+  color: #5e605a;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.5;
 }
 
 .review-columns {
@@ -321,9 +319,10 @@
 }
 
 .confidence {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
   align-items: center;
-  justify-content: space-between;
   margin-top: 26rpx;
   padding: 20rpx;
   border: 4rpx solid #101619;
@@ -334,9 +333,15 @@
   font-weight: 900;
 }
 
+.confidence > view {
+  display: grid;
+  gap: 8rpx;
+  text-align: center;
+}
+
 .confidence-value {
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 52rpx;
+  font-size: 40rpx;
   font-variant-numeric: tabular-nums;
 }
 

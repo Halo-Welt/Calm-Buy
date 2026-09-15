@@ -9,7 +9,6 @@ const {
   resolveTier,
   withSelfSupplement
 } = require('./questions')
-const { platformFromUrl } = require('./search')
 
 /** 只有在“更贵、更长期、更难退”的决策上，才对非功能性动机保持警惕 */
 const CAUTIOUS_NEEDS = new Set(['anxiety', 'identity', 'belong'])
@@ -90,6 +89,35 @@ function normalizeItemList(list, fallbackNeedId, max) {
     .slice(0, max)
 }
 
+function normalizePriceRange(value) {
+  if (value == null) return null
+  if (typeof value === 'string') return value.trim() || null
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value !== 'object') return null
+
+  const text = value.text || value.range || value.label
+  if (typeof text === 'string' && text.trim()) return text.trim()
+
+  const min = value.min ?? value.low
+  const max = value.max ?? value.high
+  if (Number.isFinite(Number(min)) && Number.isFinite(Number(max))) {
+    return `${min}–${max}${typeof value.unit === 'string' ? value.unit : ' 元'}`
+  }
+  return null
+}
+
+function normalizeMinimumExperiment(value) {
+  if (!value || typeof value !== 'object') return null
+  const title = typeof value.title === 'string' ? value.title.trim() : ''
+  const action = typeof value.action === 'string' ? value.action.trim() : ''
+  if (!title || !action) return null
+  return {
+    title,
+    action,
+    duration: typeof value.duration === 'string' ? value.duration : ''
+  }
+}
+
 /**
  * 模型只回传本轮变化的字段，服务端把它合进上一轮的草稿。
  * 空值不覆盖已有值：模型偶尔会把已确认的字段写成空串或空数组，
@@ -156,13 +184,16 @@ function sanitizeModelOutput(modelOutput, request = {}) {
       evidenceQuotes: clampArray(rawResult.evidenceQuotes, 6),
       marketSnapshot: rawResult.marketSnapshot && {
         ...rawResult.marketSnapshot,
+        priceRange: normalizePriceRange(rawResult.marketSnapshot.priceRange),
         watchOuts: clampArray(rawResult.marketSnapshot.watchOuts, 3)
       },
       needDecomposition: rawResult.needDecomposition && {
         ...rawResult.needDecomposition,
         constraints: clampArray(rawResult.needDecomposition.constraints, 5)
       },
-      alternatives: normalizeItemList(rawResult.alternatives, fallbackNeedId, 4),
+      minimumExperiment: normalizeMinimumExperiment(rawResult.minimumExperiment),
+      alternatives: normalizeItemList(rawResult.alternatives, fallbackNeedId, 4)
+        .filter((item) => item.type === 'non_purchase' || item.type === 'rent_or_try'),
       candidateProducts: normalizeItemList(rawResult.candidateProducts, fallbackNeedId, 3)
     }
   }
@@ -297,59 +328,18 @@ function enforcePhase(response, request) {
 }
 
 function normalizeCandidate(item, hasSearch) {
-  const url = hasSearch && typeof item.url === 'string' && /^https?:\/\//.test(item.url)
-    ? item.url
-    : null
-  const price = hasSearch && typeof item.price === 'string' && item.price.trim()
-    ? item.price.trim().slice(0, 40)
-    : null
   return {
     ...item,
     verificationStatus: hasSearch ? '联网搜索摘要，请自行核对' : '模型常识，未联网核验',
-    price,
-    url
-  }
-}
-
-function asSearchCandidate(item, needId) {
-  return {
-    title: String(item.title || '检索结果').slice(0, 100),
-    why: String(item.content || '来自联网检索，下单前请核对店铺与价格').slice(0, 300),
-    servesNeedId: NEED_IDS.includes(needId) ? needId : 'utility',
-    verificationStatus: '联网搜索摘要，请自行核对',
     price: null,
-    url: item.url
+    url: null
   }
 }
 
-function fillCandidates(candidates, searchEvidence, needId, hasSearch) {
-  const normalized = (Array.isArray(candidates) ? candidates : [])
+function fillCandidates(candidates, hasSearch) {
+  return (Array.isArray(candidates) ? candidates : [])
     .slice(0, 3)
     .map((item) => normalizeCandidate(item, hasSearch))
-
-  if (!hasSearch) return normalized.slice(0, 3)
-
-  const items = (searchEvidence?.items || []).filter((item) => item?.url)
-  const used = new Set(normalized.map((item) => item.url).filter(Boolean))
-
-  const patched = normalized.map((item) => {
-    if (item.url) return item
-    const hit = items.find((entry) => !used.has(entry.url) && (
-      platformFromUrl(entry.url)
-      || (item.title && entry.title && entry.title.includes(item.title.slice(0, 8)))
-    ))
-    if (!hit) return item
-    used.add(hit.url)
-    return { ...item, url: hit.url, verificationStatus: '联网搜索摘要，请自行核对' }
-  })
-
-  const leftover = items.filter((item) => !used.has(item.url))
-  const preferred = leftover.filter((item) => item.sourceKind === 'shop' || platformFromUrl(item.url))
-  const extras = (preferred.length ? preferred : leftover)
-    .slice(0, Math.max(0, 3 - patched.length))
-    .map((item) => asSearchCandidate(item, needId))
-
-  return [...patched, ...extras].slice(0, 3)
 }
 
 function applyResultGuards(response, request = {}) {
@@ -360,8 +350,19 @@ function applyResultGuards(response, request = {}) {
 
   const tier = readTier(response, request)
   const hasSearch = Boolean(request.searchEvidence?.enabled && request.searchEvidence?.items?.length)
+  const sourceQuality = request.searchEvidence?.credibility?.level || (hasSearch ? 'medium' : 'low')
+  const evidenceQuality = sourceQuality === 'high' && result.evidenceQuality === 'high'
+    ? 'high'
+    : sourceQuality === 'low' ? 'low' : 'medium'
+  const readiness = Number(response.draft?.readiness) || 0
+  const needClarity = response.draft?.userConfirmedNeed || request.confirmation === true
+    ? (readiness >= 0.7 ? 'high' : 'medium')
+    : (readiness >= 0.6 ? 'medium' : 'low')
 
-  if (!hasSearch && result.confidence === 'high') {
+  result.needClarity = needClarity
+  result.evidenceQuality = evidenceQuality
+
+  if (evidenceQuality !== 'high' && result.confidence === 'high') {
     result.confidence = 'medium'
   }
 
@@ -374,12 +375,9 @@ function applyResultGuards(response, request = {}) {
     ].slice(0, 3)
   }
 
-  result.alternatives = result.alternatives.slice(0, 2).map((item) => ({
-    ...item,
-    type: ['non_purchase', 'rent_or_try', 'product'].includes(item.type)
-      ? item.type
-      : 'non_purchase'
-  }))
+  result.alternatives = result.alternatives
+    .filter((item) => item.type === 'non_purchase' || item.type === 'rent_or_try')
+    .slice(0, 2)
 
   if (!hasSearch) {
     result.marketSnapshot = {
@@ -398,11 +396,25 @@ function applyResultGuards(response, request = {}) {
   }
 
   result.candidateProducts = fillCandidates(
-    result.confidence === 'low' ? [] : result.candidateProducts,
-    request.searchEvidence,
-    result.primaryNeedId || 'utility',
+    result.confidence === 'low' || evidenceQuality !== 'high' ? [] : result.candidateProducts,
     hasSearch
   )
+
+  const budgetFit = response.draft?.budgetFit || request.draft?.budgetFit || 'unknown'
+  if (
+    result.verdict === 'buy'
+    && tier !== 'trivial'
+    && (needClarity !== 'high' || evidenceQuality !== 'high' || budgetFit !== 'within')
+  ) {
+    result.verdict = 'wait'
+    result.confidence = evidenceQuality === 'low' || needClarity === 'low' ? 'low' : 'medium'
+    result.reasons = [
+      ...result.reasons.slice(0, 2),
+      budgetFit !== 'within'
+        ? '预算与当前价格是否匹配还没确认，先别把“买得起”和“值得买”混在一起。'
+        : '需求或市场证据还没达到明确建议购买的门槛。'
+    ].slice(0, 3)
+  }
 
   if (!String(result.needDecomposition?.functional || '').trim()) {
     result.needDecomposition = {

@@ -12,16 +12,17 @@
     mode="widthFix"
     aria-hidden="true"
   />
+  <view class="positioning-copy">先暂停一下，不是劝退。该买的，我会明确说可以买。</view>
 
   <view class="status-row">
-    <view class="score-card">
+    <view class="score-card" bindtap="openCooldowns" hover-class="score-card-hover">
       <view class="card-tab">冲动倒计时 ▶</view>
       <view class="timer {{hasCooldown ? '' : 'timer-idle'}}">{{timerText}}</view>
       <view class="timer-caption">{{timerCaption}}</view>
     </view>
 
     <view
-      class="meter-card {{overheat ? 'meter-card-overheat' : ''}}"
+      class="meter-card {{overheat ? 'meter-card-overheat' : ''}} {{temperature ? '' : 'meter-card-idle'}}"
       style="background: {{cardColor}};"
       hover-class="meter-card-hover"
       hover-stay-time="80"
@@ -72,7 +73,7 @@
     <view class="consent-dialog">
       <view class="consent-tab">隐私提醒 ▶</view>
       <view class="consent-title">开始智能分析</view>
-      <view class="consent-body">你的回答会发送至服务端和 DeepSeek 用于本次分析；冷静记录仍只保存在本机。</view>
+      <view class="consent-body">你的商品描述与回答会发送至服务端、DeepSeek，并在需要时发送至豆包搜索或 Tavily；冷静记录仍只保存在本机。</view>
       <button
         class="primary-button consent-confirm"
         hover-class="consent-confirm-hover"

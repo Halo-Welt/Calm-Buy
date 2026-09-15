@@ -13,6 +13,14 @@ const draftSchema = z.object({
   productName: z.string().max(200).default(''),
   decisionTier: z.enum(DECISION_TIERS).nullable().default(null),
   tierReason: z.string().max(200).default(''),
+  decisionFactors: z.object({
+    priceLevel: z.enum(['low', 'medium', 'high', 'unknown']).default('unknown'),
+    usageHorizon: z.enum(['short', 'medium', 'long', 'unknown']).default('unknown'),
+    reversibility: z.enum(['easy', 'limited', 'hard', 'unknown']).default('unknown'),
+    spaceImpact: z.enum(['none', 'some', 'large', 'unknown']).default('unknown'),
+    commitment: z.enum(['low', 'medium', 'high', 'unknown']).default('unknown')
+  }).partial().default({}),
+  budgetFit: z.enum(['within', 'over', 'unknown']).default('unknown'),
   /** 模型识别出的品类，以及这个品类真正决定买错买对的维度；首轮生成，后续轮复用 */
   categoryLabel: z.string().max(60).default(''),
   keyDimensions: z.array(z.string().trim().min(1).max(30)).max(4).default([]),
@@ -42,7 +50,7 @@ const alternativeSchema = z.object({
   title: z.string().trim().min(1).max(100),
   why: z.string().trim().min(1).max(300),
   servesNeedId: z.enum(NEED_IDS),
-  type: z.enum(['non_purchase', 'rent_or_try', 'product'])
+  type: z.enum(['non_purchase', 'rent_or_try'])
 })
 
 const candidateProductSchema = z.object({
@@ -63,6 +71,10 @@ const marketSnapshotSchema = z.object({
 const resultSchema = z.object({
   verdict: z.enum(['stop', 'wait', 'buy', 'replace']),
   confidence: z.enum(['high', 'medium', 'low']),
+  needClarity: z.enum(['high', 'medium', 'low']).default('low'),
+  evidenceQuality: z.enum(['high', 'medium', 'low']).default('low'),
+  safetyBoundary: z.boolean().default(false),
+  boundaryReason: z.string().max(300).default(''),
   needSentence: z.string().trim().min(1).max(500),
   primaryNeedId: z.enum(NEED_IDS),
   matchScore: z.enum(['high', 'medium', 'low']),

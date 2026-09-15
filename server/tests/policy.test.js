@@ -35,6 +35,7 @@ function modelOutput(overrides = {}) {
       productName: '未来眼镜',
       decisionTier: 'major',
       tierReason: '单价过万，长期持有',
+      budgetFit: 'within',
       desiredOutcome: '躺着看大屏电影',
       scene: '每天睡前',
       frequency: '每天',
@@ -58,6 +59,8 @@ function modelOutput(overrides = {}) {
     result: {
       verdict: 'buy',
       confidence: 'high',
+      needClarity: 'high',
+      evidenceQuality: 'high',
       needSentence: '舒适地躺着看大屏电影',
       primaryNeedId: 'utility',
       matchScore: 'medium',
@@ -102,32 +105,71 @@ function modelOutput(overrides = {}) {
   }
 }
 
-test('无联网证据时降置信度，并抹掉价格、链接与价格区间', () => {
+test('无联网证据时降级为先验证，并移除候选、价格和链接', () => {
   const result = applyPolicy(modelOutput(), request())
-  assert.equal(result.result.confidence, 'medium')
-  assert.equal(result.result.verdict, 'buy')
-  assert.equal(result.result.candidateProducts[0].price, null)
-  assert.equal(result.result.candidateProducts[0].url, null)
-  assert.equal(result.result.candidateProducts[0].verificationStatus, '模型常识，未联网核验')
+  assert.equal(result.result.confidence, 'low')
+  assert.equal(result.result.verdict, 'wait')
+  assert.deepEqual(result.result.candidateProducts, [])
+  assert.equal(result.result.needClarity, 'high')
+  assert.equal(result.result.evidenceQuality, 'low')
   assert.equal(result.result.marketSnapshot.priceRange, null)
 })
 
-test('有联网证据时保留价格、链接并允许高置信度', () => {
+test('模型把价格区间写成对象时转为可展示文本', () => {
+  const output = modelOutput()
+  output.result.marketSnapshot.priceRange = { min: 1999, max: 2499, unit: ' 元' }
+  const result = applyPolicy(output, {
+    ...request(),
+    searchEvidence: {
+      enabled: true,
+      items: [{ title: '报价', url: 'https://example.com/a', content: '售价 1999 元' }],
+      credibility: { level: 'medium', hasPriceSource: true, independentExperienceSources: 0 }
+    }
+  })
+  assert.equal(result.result.marketSnapshot.priceRange, '1999–2499 元')
+})
+
+test('模型给出不完整的最小实验时丢弃该字段而非丢弃整份结果', () => {
+  const output = modelOutput()
+  output.result.minimumExperiment = { title: '先试一次' }
+  const result = applyPolicy(output, request())
+  assert.equal(result.result.minimumExperiment, null)
+  assert.equal(result.phase, 'done')
+})
+
+test('独立来源充分时允许高置信度，但候选不保留价格和购买链接', () => {
   const result = applyPolicy(modelOutput(), {
     ...request(),
     searchEvidence: {
       enabled: true,
       items: [{ title: '评测', url: 'https://example.com/a', content: '售价约 3000 元' }],
+      credibility: { level: 'high', hasPriceSource: true, independentExperienceSources: 2 },
       summary: '售价约 3000 元'
     }
   })
   assert.equal(result.result.confidence, 'high')
-  assert.equal(result.result.candidateProducts[0].price, '2999 元')
-  assert.equal(result.result.candidateProducts[0].url, 'https://example.com/x')
+  assert.equal(result.result.candidateProducts[0].price, null)
+  assert.equal(result.result.candidateProducts[0].url, null)
   assert.equal(result.result.marketSnapshot.priceRange, '约 3000 元')
 })
 
-test('模型没给候选时，用检索到的电商链接补上', () => {
+test('来源数量够但关键结论未交叉支持时，仍不能给高可信', () => {
+  const output = modelOutput()
+  output.result.evidenceQuality = 'medium'
+  const result = applyPolicy(output, {
+    ...request(),
+    searchEvidence: {
+      enabled: true,
+      items: [{ title: '评测', url: 'https://example.com/a', content: '结论存在分歧' }],
+      credibility: { level: 'high', hasPriceSource: true, independentExperienceSources: 2 },
+      summary: '体验结论存在分歧'
+    }
+  })
+  assert.equal(result.result.evidenceQuality, 'medium')
+  assert.notEqual(result.result.verdict, 'buy')
+})
+
+test('模型没给候选时，不把电商搜索结果自动变成购买入口', () => {
   const output = modelOutput()
   output.result.candidateProducts = []
   const result = applyPolicy(output, {
@@ -141,9 +183,7 @@ test('模型没给候选时，用检索到的电商链接补上', () => {
       summary: '宿舍款约 400 元'
     }
   })
-  assert.ok(result.result.candidateProducts.length >= 2)
-  assert.equal(result.result.candidateProducts[0].url, 'https://item.jd.com/123.html')
-  assert.equal(result.result.candidateProducts[1].url, 'https://item.taobao.com/item.htm?id=1')
+  assert.deepEqual(result.result.candidateProducts, [])
 })
 
 test('大额决策里焦虑驱动的 buy 降级为先验证', () => {
@@ -331,9 +371,17 @@ test('冲动温度高时非 buy 结论至少留足冷静时间，buy 不受影�
   }))
   assert.equal(cooled.result.cooldownHours, 72)
 
-  const buying = applyPolicy(modelOutput(), request({
-    impulse: { temperature: 88, signals: ['还有 2 件东西的冷静期没走完'] }
-  }))
+  const buying = applyPolicy(modelOutput(), {
+    ...request({
+      impulse: { temperature: 88, signals: ['还有 2 件东西的冷静期没走完'] }
+    }),
+    searchEvidence: {
+      enabled: true,
+      items: [{ title: '评测', url: 'https://example.com/a', content: '售价约 3000 元' }],
+      credibility: { level: 'high', hasPriceSource: true, independentExperienceSources: 2 },
+      summary: '售价约 3000 元'
+    }
+  })
   assert.equal(buying.result.verdict, 'buy')
   assert.equal(buying.result.cooldownHours, 24)
 })
@@ -437,7 +485,7 @@ test('首轮没锁定量级时，检索价格决定提问轮数', () => {
   assert.equal(result.progress.total, 5)
 })
 
-test('提示词按检索到的报价直接判定量级，不让模型猜', () => {
+test('提示词把报价作为量级锚点，并要求综合长期成本', () => {
   const messages = buildMessages({
     ...request({
       productText: '很贵的未来眼镜',
@@ -455,9 +503,9 @@ test('提示词按检索到的报价直接判定量级，不让模型猜', () =>
     }
   })
 
-  assert.match(messages[0].content, /真实报价是 约 1\.98 万元/)
-  assert.match(messages[0].content, /decisionTier 必须写 major/)
-  assert.match(messages[0].content, /最多提问 5 轮/)
+  assert.match(messages[0].content, /报价锚点是 约 1\.98 万元/)
+  assert.match(messages[0].content, /使用周期、退换难度、空间占用和长期承诺/)
+  assert.match(messages[0].content, /本次上限 5 轮/)
 })
 
 test('首轮要求模型给出品类专属维度，后续轮回灌并指定下一个要问的维度', () => {

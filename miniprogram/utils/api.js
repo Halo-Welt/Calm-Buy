@@ -115,4 +115,51 @@ function analyzeStep(payload) {
   return USE_LOCAL_API ? analyzeViaLocal(payload) : analyzeViaCloud(payload)
 }
 
-module.exports = { ApiError, analyzeStep }
+function callCloudAction(data) {
+  return new Promise((resolve, reject) => {
+    if (!wx.cloud || USE_LOCAL_API) {
+      resolve({ localOnly: true })
+      return
+    }
+    wx.cloud.callFunction({
+      name: ANALYZE_FUNCTION_NAME,
+      data,
+      success(response) {
+        if (response.result?.ok) {
+          resolve(response.result.data)
+          return
+        }
+        reject(new ApiError(
+          response.result?.error?.message || '云端操作失败',
+          response.result?.error?.code || 'CLOUD_ACTION_FAILED'
+        ))
+      },
+      fail(error) {
+        reject(new ApiError(error.errMsg || '云端操作失败', 'CLOUD_ACTION_FAILED'))
+      }
+    })
+  })
+}
+
+function recordAnonymousEvent(event) {
+  return callCloudAction({ action: 'telemetry', event })
+}
+
+function deleteAnonymousData(deleteToken) {
+  return callCloudAction({ action: 'deleteTelemetry', deleteToken })
+}
+
+function scheduleCooldownReminder(analysisId, cooldownHours) {
+  return callCloudAction({
+    action: 'scheduleReminder',
+    reminder: { analysisId, cooldownHours }
+  })
+}
+
+module.exports = {
+  ApiError,
+  analyzeStep,
+  deleteAnonymousData,
+  recordAnonymousEvent,
+  scheduleCooldownReminder
+}

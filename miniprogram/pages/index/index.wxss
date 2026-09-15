@@ -37,6 +37,14 @@
   background: #fffdf8;
 }
 
+.positioning-copy {
+  margin: 26rpx 0 34rpx;
+  color: #41423f;
+  font-size: 28rpx;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
 .status-row {
   display: flex;
   align-items: stretch;
@@ -118,6 +126,15 @@
 
 .meter-card-hover {
   filter: brightness(0.97);
+}
+
+.score-card-hover {
+  transform: translate(2rpx, 2rpx);
+  box-shadow: 4rpx 4rpx 0 #101619;
+}
+
+.meter-card-idle {
+  opacity: 0.58;
 }
 
 .meter-card-overheat {

@@ -19,6 +19,13 @@
         <view class="item-verdict">{{item.verdictLabel}} · {{item.needSentence}}</view>
         <view class="item-detail-hint">查看结论详情</view>
       </view>
+      <button
+        class="review-button"
+        wx:if="{{item.reviewStage}}"
+        data-id="{{item.id}}"
+        data-stage="{{item.reviewStage}}"
+        bindtap="startReview"
+      >{{item.reviewLabel}}</button>
       <view class="chip-row">
         <button class="chip" data-id="{{item.id}}" data-status="abandoned" bindtap="updateStatus">已经不想要</button>
         <button class="chip" data-id="{{item.id}}" data-status="still-want" bindtap="updateStatus">冷静后还想要</button>

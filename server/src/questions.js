@@ -33,9 +33,11 @@ const TIER_PLANS = {
   }
 }
 
-const TIER_GUIDE = `- trivial：单价约 100 元以内、快消/日用/一次性、买错几乎无成本（泡面、饮料、袜子、纸巾、九块九小工具）。
-- standard：单价约 100–3000 元，会用上几个月到两三年，买错也就是闲置（耳机、小家电、衣服鞋子、键盘、行李箱、平板配件）。
-- major：单价约 3000 元以上，或长期持有、占空间、有明显机会成本（车、房、手机、电脑、相机、家具、乐器、长期课程或健身年卡）。`
+const TIER_GUIDE = `决策量级不能只看价格，还要综合使用周期、退换难度、空间占用与长期承诺：
+- trivial：低价、短期、易退换、不占空间、几乎没有持续承诺（泡面、饮料、纸巾、小工具）。
+- standard：中等支出或会使用数月至数年，但通常可退换、转卖或停止使用（耳机、小家电、服饰、键盘）。
+- major：高价，或长期持有、难退换、明显占空间/时间、有持续付费或机会成本（车、电脑、家具、课程、会员年卡）。
+即使价格不高，只要长期承诺或退出成本高，也应提高量级；高价但可无损退换，只能作为初始锚点。`
 
 const FALLBACK_QUESTIONS = {
   trivial: [
@@ -116,7 +118,11 @@ function tierFromPrice(value) {
 function anchoredTier(modelTier, searchEvidence) {
   const anchor = searchEvidence?.priceAnchor
   const anchored = anchor && anchor.count >= 2 ? tierFromPrice(anchor.median) : null
-  return anchored || resolveTier(modelTier)
+  if (!anchored) return resolveTier(modelTier)
+  if (!DECISION_TIERS.includes(modelTier)) return anchored
+  return DECISION_TIERS.indexOf(modelTier) > DECISION_TIERS.indexOf(anchored)
+    ? modelTier
+    : anchored
 }
 
 function resolvePlan(tier, temperature = 0) {
@@ -159,7 +165,14 @@ function shouldResearchNow(request = {}) {
   if ((request.questionCount || 0) > 0) return false
   if (request.draft?.decisionTier === 'trivial') return false
   if (looksTrivialProduct(request.productText)) return false
+  if (looksAmbiguousProduct(request.productText)) return false
   return Boolean(String(request.productText || '').trim())
+}
+
+function looksAmbiguousProduct(productText = '') {
+  const text = String(productText).trim()
+  if (!text || text.length < 2) return true
+  return /^(新|那个|一个|某个|想买)?(手机|电脑|课程|会员|保险|药|车|相机|耳机|鞋|衣服|家电|礼物)$/.test(text)
 }
 
 function withSelfSupplement(options = []) {
@@ -254,6 +267,7 @@ module.exports = {
   anchoredTier,
   isFinalRound,
   looksTrivialProduct,
+  looksAmbiguousProduct,
   isProductRestatement,
   needDiscoveryComplete,
   nextOpenDimension,

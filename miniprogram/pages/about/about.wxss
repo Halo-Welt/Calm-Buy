@@ -61,6 +61,20 @@
   color: #ffffff;
 }
 
+.privacy-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22rpx;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.danger-text {
+  margin-top: 12rpx;
+  color: #ffe53b;
+}
+
 .privacy .lead {
   color: #ffffff;
 }

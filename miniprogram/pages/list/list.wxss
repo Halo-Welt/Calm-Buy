@@ -84,6 +84,16 @@
   font-weight: 900;
 }
 
+.review-button {
+  margin: 22rpx 0 0;
+  border: 4rpx solid #101619;
+  border-radius: 18rpx;
+  background: #ddff32;
+  color: #101619;
+  font-size: 26rpx;
+  font-weight: 1000;
+}
+
 .chip.danger {
   background: #ff543c;
   color: #ffffff;

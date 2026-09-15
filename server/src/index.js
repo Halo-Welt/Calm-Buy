@@ -6,6 +6,12 @@ const { applyPolicy } = require('./policy')
 const { buildFallbackResponse } = require('./fallback')
 const { isFinalRound, shouldResearchNow } = require('./questions')
 const {
+  buildAmbiguousResponse,
+  buildRestrictedResponse,
+  looksAmbiguous,
+  restrictedCategory
+} = require('./safety')
+const {
   annotateSearchMeta,
   emptySearchEvidence,
   isDoubaoConfigured,
@@ -140,6 +146,18 @@ async function attachSearchEvidence(requestData) {
 }
 
 async function analyze(requestData) {
+  const safetyText = [
+    requestData.productText,
+    ...(requestData.messages || []).filter((item) => item.role === 'user').map((item) => item.content)
+  ].join('\n')
+  const restricted = restrictedCategory(safetyText)
+  if (restricted) return buildRestrictedResponse(requestData, restricted)
+  if ((requestData.questionCount || 0) === 0 && looksAmbiguous(requestData.productText)) {
+    return buildAmbiguousResponse(requestData)
+  }
+
+  const startedAt = Date.now()
+  const deadlineMs = isFinalRound(requestData) ? 19000 : 9500
   const enriched = await attachSearchEvidence(requestData)
   const messages = buildMessages(enriched)
   const budget = llmBudget(isFinalRound(requestData))
@@ -149,13 +167,15 @@ async function analyze(requestData) {
     const result = applyPolicy(output, enriched)
     return annotateSearchMeta(result, enriched.searchEvidence)
   } catch (validationError) {
+    const remainingMs = deadlineMs - (Date.now() - startedAt)
+    if (remainingMs < 2000) throw validationError
     output = await callDeepSeek([
       ...messages,
       {
         role: 'system',
         content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
       }
-    ], budget)
+    ], { ...budget, timeoutMs: Math.min(budget.timeoutMs, remainingMs) })
     const result = applyPolicy(output, enriched)
     return annotateSearchMeta(result, enriched.searchEvidence)
   }
