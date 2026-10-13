@@ -1,5 +1,7 @@
 const DEFAULT_BASE_URL = 'https://api.deepseek.com'
-const DEFAULT_MODEL = 'deepseek-v4-flash'
+const DEFAULT_MODEL = 'deepseek-flash'
+
+let lastStatus = { ok: null, code: null, message: null }
 
 class DeepSeekError extends Error {
   constructor(message, code, status = 500) {
@@ -8,6 +10,39 @@ class DeepSeekError extends Error {
     this.code = code
     this.status = status
   }
+}
+
+function llmStatus() {
+  return { ...lastStatus }
+}
+
+function recordStatus(ok, error) {
+  lastStatus = {
+    ok,
+    code: error?.code || null,
+    message: error ? String(error.message || '').slice(0, 180) : null
+  }
+}
+
+async function errorDetail(response) {
+  const text = await response.text()
+  try {
+    const parsed = JSON.parse(text)
+    return String(parsed.error?.message || parsed.message || text).slice(0, 200)
+  } catch {
+    return String(text || '').slice(0, 200)
+  }
+}
+
+function classifyHttpError(status, detail) {
+  const text = String(detail || '')
+  if (status === 401) {
+    return { code: 'DEEPSEEK_AUTH_FAILED', message: 'DeepSeek API Key 无效' }
+  }
+  if (status === 402 || /insufficient balance/i.test(text)) {
+    return { code: 'DEEPSEEK_INSUFFICIENT_BALANCE', message: 'DeepSeek 余额不足，请充值后再试' }
+  }
+  return { code: 'DEEPSEEK_HTTP_ERROR', message: `DeepSeek 请求失败：${status}` }
 }
 
 function llmBudget(isFinal) {
@@ -20,7 +55,9 @@ function llmBudget(isFinal) {
 async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = {}) {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) {
-    throw new DeepSeekError('DeepSeek API Key 未配置', 'DEEPSEEK_NOT_CONFIGURED', 503)
+    const error = new DeepSeekError('DeepSeek API Key 未配置', 'DEEPSEEK_NOT_CONFIGURED', 503)
+    recordStatus(false, error)
+    throw error
   }
 
   const baseUrl = (process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '')
@@ -51,12 +88,9 @@ async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = 
       })
 
       if (!response.ok) {
-        await response.text()
-        throw new DeepSeekError(
-          `DeepSeek 请求失败：${response.status}`,
-          response.status === 401 ? 'DEEPSEEK_AUTH_FAILED' : 'DEEPSEEK_HTTP_ERROR',
-          response.status
-        )
+        const detail = await errorDetail(response)
+        const classified = classifyHttpError(response.status, detail)
+        throw new DeepSeekError(classified.message, classified.code, response.status)
       }
 
       const payload = await response.json()
@@ -67,17 +101,26 @@ async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = 
       }
 
       try {
-        return JSON.parse(content)
+        const parsed = JSON.parse(content)
+        recordStatus(true, null)
+        return parsed
       } catch {
         lastError = new DeepSeekError('DeepSeek 返回了非法 JSON', 'DEEPSEEK_INVALID_JSON', 502)
         continue
       }
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw new DeepSeekError('DeepSeek 请求超时', 'DEEPSEEK_TIMEOUT', 504)
+        const timeout = new DeepSeekError('DeepSeek 请求超时', 'DEEPSEEK_TIMEOUT', 504)
+        recordStatus(false, timeout)
+        throw timeout
       }
       if (error instanceof DeepSeekError) {
-        if (error.code === 'DEEPSEEK_AUTH_FAILED' || error.code === 'DEEPSEEK_NOT_CONFIGURED') {
+        recordStatus(false, error)
+        if (
+          error.code === 'DEEPSEEK_AUTH_FAILED'
+          || error.code === 'DEEPSEEK_NOT_CONFIGURED'
+          || error.code === 'DEEPSEEK_INSUFFICIENT_BALANCE'
+        ) {
           throw error
         }
         lastError = error
@@ -89,6 +132,7 @@ async function callDeepSeek(messages, { timeoutMs = 15000, maxTokens = 1400 } = 
     }
   }
 
+  recordStatus(false, lastError)
   throw lastError || new DeepSeekError('DeepSeek 请求失败', 'DEEPSEEK_HTTP_ERROR', 502)
 }
 
@@ -97,5 +141,6 @@ module.exports = {
   DEFAULT_MODEL,
   DeepSeekError,
   callDeepSeek,
-  llmBudget
+  llmBudget,
+  llmStatus
 }

@@ -37,6 +37,10 @@ function looksLikeNeedQuestion(text) {
   return !/想买|就是买|购买目标|下手吗|要下单吗|哪一款|什么颜色|什么型号/.test(text)
 }
 
+function looksGenericTemplate(text) {
+  return /抛开这件商品|这个问题一般什么时候会出现|现在你是怎么对付的|现在你用什么顶着/.test(String(text || ''))
+}
+
 /** 量级一旦落进 draft 就锁定；首轮还没锁定时，检索到的真实报价优先于模型的猜测 */
 function readTier(response, request) {
   if (request?.draft?.decisionTier) return resolveTier(request.draft.decisionTier)
@@ -206,9 +210,11 @@ function forceClarify(response, request, reasonLabel) {
     response.draft,
     request.productText,
     request.questionCount || 0,
-    tier
+    tier,
+    request.searchEvidence
   )
   const keepModelQuestion = looksLikeNeedQuestion(response.assistantMessage)
+    && !looksGenericTemplate(response.assistantMessage)
     && response.phase !== 'done'
   const sourceOptions = keepModelQuestion && response.options?.length
     ? response.options
@@ -321,7 +327,15 @@ function enforcePhase(response, request) {
   response.result = null
   response.inputType = 'choice'
   response.options = withSelfSupplement(
-    response.options?.length ? response.options : pickFollowUp(questionCount, tier).options
+    response.options?.length
+      ? response.options
+      : pickNeedFollowUp(
+        response.draft,
+        request.productText,
+        questionCount,
+        tier,
+        request.searchEvidence
+      ).options
   )
   response.draft = { ...response.draft, decisionTier: tier }
   return response

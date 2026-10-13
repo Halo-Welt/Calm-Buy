@@ -1,0 +1,65 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "特斯拉 Model Y 长续航",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "朋友",
+        "圈子",
+        "都有",
+        "身份",
+        "被看见"
+      ],
+      "fallback_text": "主要是朋友都有，不想被落下"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔",
+        "不一定",
+        "一个月"
+      ],
+      "fallback_text": "一个月都不一定碰到真实用车需求"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "还能凑合",
+        "地铁",
+        "没有刚需"
+      ],
+      "fallback_text": "现在地铁通勤其实还能凑合"
+    },
+    {
+      "turn": 4,
+      "type": "choice",
+      "match_any": [
+        "还在比价",
+        "价格不是",
+        "没想好"
+      ],
+      "fallback_text": "还在比价"
+    },
+    {
+      "turn": 5,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

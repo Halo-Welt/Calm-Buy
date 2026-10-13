@@ -1,0 +1,62 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "富士 X100VI",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "出片",
+        "拍照",
+        "街拍"
+      ],
+      "fallback_text": "想把周末街拍拍得更好看"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔",
+        "周末"
+      ],
+      "fallback_text": "大概一周一次"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "有旧的",
+        "还能用"
+      ],
+      "fallback_text": "已经有一台能用的微单"
+    },
+    {
+      "turn": 4,
+      "type": "choice",
+      "match_any": [
+        "还在比价",
+        "不够",
+        "超了",
+        "预算不够"
+      ],
+      "fallback_text": "现在售价超过我想花的钱"
+    },
+    {
+      "turn": 5,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

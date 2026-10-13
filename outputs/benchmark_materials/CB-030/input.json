@@ -1,0 +1,51 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "宜家 KALLAX 架子",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "收纳",
+        "搬家",
+        "空间"
+      ],
+      "fallback_text": "搬家后书和手办没地方放，地面已经堆起来了"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天",
+        "一直"
+      ],
+      "fallback_text": "每天进门都会看到这堆东西"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "纸箱",
+        "不好用"
+      ],
+      "fallback_text": "现在用纸箱，拿东西很麻烦而且占走道"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

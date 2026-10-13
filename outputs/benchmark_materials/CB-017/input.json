@@ -1,0 +1,50 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "AirPods Pro 2",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "想换新",
+        "新鲜",
+        "体验"
+      ],
+      "fallback_text": "旧的还能用，主要想体验新款"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔"
+      ],
+      "fallback_text": "一周几次想用降噪"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "还能凑合",
+        "旧的还能用"
+      ],
+      "fallback_text": "现在的 AirPods Pro 第一代其实还能凑合"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

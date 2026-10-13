@@ -1,0 +1,17 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "假证",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    }
+  ]
+}

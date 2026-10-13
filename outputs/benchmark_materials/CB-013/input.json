@@ -1,0 +1,32 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "罗技 MX Keys 键盘",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "我想自己补充",
+        "自己补充"
+      ],
+      "prefer_self_supplement": true,
+      "fallback_text": "我想自己补充"
+    },
+    {
+      "turn": 2,
+      "type": "self_supplement",
+      "text": "主要是晚上打字要静音，而且跨 Mac 和 Windows 切机"
+    }
+  ]
+}

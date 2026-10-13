@@ -1,0 +1,31 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "康师傅红烧牛肉面",
+    "impulse": {
+      "temperature": 85,
+      "signals": [
+        "现在是 1 点，深夜最容易买了后悔"
+      ]
+    }
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "想吃",
+        "具体需要"
+      ],
+      "fallback_text": "就是想吃"
+    }
+  ]
+}

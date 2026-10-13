@@ -1,0 +1,52 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "科沃斯 T30 扫地机器人",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "扫地",
+        "懒",
+        "宠物",
+        "地板"
+      ],
+      "fallback_text": "不想每天拖地，猫毛和落地灰清不完"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天",
+        "上班"
+      ],
+      "fallback_text": "工作日每天都有"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "扫把",
+        "手拖"
+      ],
+      "fallback_text": "现在手拖，下班太累就隔天拖"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

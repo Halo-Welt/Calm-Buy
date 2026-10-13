@@ -1,0 +1,57 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "戴森 V15 吸尘器",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "宠物",
+        "掉毛",
+        "地板"
+      ],
+      "fallback_text": "家里有猫，地板和沙发掉毛清不干净"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天",
+        "几乎"
+      ],
+      "fallback_text": "几乎每天都要清"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "扫把",
+        "不好用",
+        "吸力"
+      ],
+      "fallback_text": "现在用扫把和廉价吸尘器，边角吸不干净"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": false,
+      "text": "不对，我补充"
+    },
+    {
+      "turn": 5,
+      "type": "self_supplement",
+      "text": "其实我更烦的是过敏，不只是看起来脏"
+    }
+  ]
+}

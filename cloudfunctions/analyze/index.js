@@ -2,7 +2,7 @@ const cloud = require('wx-server-sdk')
 const crypto = require('node:crypto')
 const { analyzeRequestSchema } = require('./src/schema')
 const { buildMessages } = require('./src/prompt')
-const { callDeepSeek, llmBudget } = require('./src/deepseek')
+const { callDeepSeek, llmBudget, llmStatus } = require('./src/deepseek')
 const { applyPolicy } = require('./src/policy')
 const { buildFallbackResponse } = require('./src/fallback')
 const { isFinalRound, shouldResearchNow } = require('./src/questions')
@@ -282,21 +282,29 @@ async function analyze(requestData) {
   const enriched = await attachSearchEvidence(requestData)
   const messages = buildMessages(enriched)
   const budget = llmBudget(isFinalRound(requestData))
-  let output = await callDeepSeek(messages, budget)
 
   try {
-    return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
-  } catch (validationError) {
-    const remainingMs = deadlineMs - (Date.now() - startedAt)
-    if (remainingMs < 2000) throw validationError
-    output = await callDeepSeek([
-      ...messages,
-      {
-        role: 'system',
-        content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
-      }
-    ], { ...budget, timeoutMs: Math.min(budget.timeoutMs, remainingMs) })
-    return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
+    let output = await callDeepSeek(messages, budget)
+
+    try {
+      return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
+    } catch (validationError) {
+      const remainingMs = deadlineMs - (Date.now() - startedAt)
+      if (remainingMs < 2000) throw validationError
+      output = await callDeepSeek([
+        ...messages,
+        {
+          role: 'system',
+          content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
+        }
+      ], { ...budget, timeoutMs: Math.min(budget.timeoutMs, remainingMs) })
+      return annotateSearchMeta(applyPolicy(output, enriched), enriched.searchEvidence)
+    }
+  } catch (error) {
+    return annotateSearchMeta(
+      buildFallbackResponse(enriched, error.code || 'ANALYSIS_FAILED'),
+      enriched.searchEvidence
+    )
   }
 }
 
@@ -314,6 +322,7 @@ exports.main = async (event) => {
       ok: true,
       data: {
         deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
+        deepseek: llmStatus(),
         searchEnabled: isSearchConfigured(),
         doubaoConfigured: isDoubaoConfigured(),
         tavilyConfigured: isTavilyConfigured()
@@ -374,7 +383,7 @@ exports.main = async (event) => {
       searchProvider: result.searchProvider || null,
       durationMs: Date.now() - startedAt
     }))
-    return { ok: true, data: { ...result, mode: 'live', error: null } }
+    return { ok: true, data: { ...result, mode: result.mode || 'live', error: result.error || null } }
   } catch (error) {
     const errorCode = error.code || 'ANALYSIS_FAILED'
     console.error(JSON.stringify({

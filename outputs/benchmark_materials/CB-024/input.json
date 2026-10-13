@@ -1,0 +1,55 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "索尼 WH-1000XM5",
+    "impulse": {
+      "temperature": 85,
+      "signals": [
+        "现在是 23 点，深夜最容易买了后悔",
+        "两周内你已经查过它 3 次，这是第 4 次"
+      ]
+    }
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "通勤",
+        "地铁"
+      ],
+      "fallback_text": "每天地铁通勤"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔",
+        "不确定"
+      ],
+      "fallback_text": "实际频率还不太确定"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "还能凑合"
+      ],
+      "fallback_text": "现有耳机其实还能凑合"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

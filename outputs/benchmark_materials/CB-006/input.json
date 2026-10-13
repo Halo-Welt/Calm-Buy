@@ -1,0 +1,52 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "iPad Air",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "说不好",
+        "暂时",
+        "不确定",
+        "体验"
+      ],
+      "fallback_text": "暂时说不好"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔",
+        "不一定"
+      ],
+      "fallback_text": "一个月都不一定碰到"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "还能凑合",
+        "没有"
+      ],
+      "fallback_text": "其实还能凑合"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

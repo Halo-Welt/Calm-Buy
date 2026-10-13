@@ -52,6 +52,7 @@ node --test tests/client-adapter.test.js
 
 ## 文档
 
+- `outputs/`：离线评测资产（方案、Benchmark、Rubric、Judge）
 - `docs/PRD-v2.md`：当前产品与发布基线
 - `docs/PRD.md`：v1 历史基线，已归档
 - `docs/UI-DESIGN-SYSTEM.md`：小程序 UI 规范

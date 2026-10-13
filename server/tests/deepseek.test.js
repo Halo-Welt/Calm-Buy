@@ -57,3 +57,35 @@ test('DeepSeek 客户端使用服务端 Key、当前模型与 JSON Output', asyn
   assert.deepEqual(received.body.thinking, { type: 'disabled' })
   assert.equal(received.body.max_tokens, 1400)
 })
+
+test('余额不足时返回明确的 DEEPSEEK_INSUFFICIENT_BALANCE', async (context) => {
+  const fakeDeepSeek = http.createServer((_request, response) => {
+    response.writeHead(402, { 'Content-Type': 'application/json' })
+    response.end(JSON.stringify({ error: { message: 'Insufficient Balance' } }))
+  })
+
+  await new Promise((resolve) => fakeDeepSeek.listen(0, '127.0.0.1', resolve))
+  context.after(async () => {
+    await new Promise((resolve) => fakeDeepSeek.close(resolve))
+  })
+
+  const previous = {
+    key: process.env.DEEPSEEK_API_KEY,
+    base: process.env.DEEPSEEK_BASE_URL
+  }
+  context.after(() => {
+    if (previous.key == null) delete process.env.DEEPSEEK_API_KEY
+    else process.env.DEEPSEEK_API_KEY = previous.key
+    if (previous.base == null) delete process.env.DEEPSEEK_BASE_URL
+    else process.env.DEEPSEEK_BASE_URL = previous.base
+  })
+
+  const address = fakeDeepSeek.address()
+  process.env.DEEPSEEK_API_KEY = 'test-key'
+  process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`
+
+  await assert.rejects(
+    () => callDeepSeek([{ role: 'system', content: 'return json' }]),
+    (error) => error.code === 'DEEPSEEK_INSUFFICIENT_BALANCE'
+  )
+})

@@ -1,0 +1,54 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "赫曼米勒 Embody 人体工学椅",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "久坐",
+        "腰痛",
+        "腰",
+        "工位"
+      ],
+      "fallback_text": "每天坐 8 小时，旧椅没有腰托，下午腰痛"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天",
+        "工位",
+        "上班"
+      ],
+      "fallback_text": "几乎每个工作日"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "旧椅",
+        "腰托",
+        "不好用"
+      ],
+      "fallback_text": "有旧椅，但腰部完全没支撑"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

@@ -280,6 +280,36 @@ test('有明确商品的首轮会检索，但不转载来源不明配图', async
   assert.deepEqual(response.data.images, [])
 })
 
+test('商品页检索到的配图会带回给前端', async (t) => {
+  modelOutput = MODEL_QUESTION
+  searchResults = {
+    results: [{
+      title: '索尼 XM5 京东',
+      url: 'https://item.jd.com/100.html',
+      content: '售价 1999 元 主动降噪',
+      images: ['https://img14.360buyimg.com/n1/xm5.jpg']
+    }],
+    images: []
+  }
+  t.after(() => {
+    modelOutput = MODEL_RESULT
+    searchResults = null
+  })
+
+  const response = await cloudFunction.main({
+    payload: payload({
+      productText: '索尼 XM5',
+      questionCount: 0,
+      draft: { decisionTier: 'standard' },
+      messages: [{ role: 'user', content: '我想买：索尼 XM5' }]
+    })
+  })
+
+  assert.equal(response.data.searchUsed, true)
+  assert.equal(response.data.images.length, 1)
+  assert.equal(response.data.images[0].url, 'https://img14.360buyimg.com/n1/xm5.jpg')
+})
+
 test('冲动温度会随请求进入云函数并放宽一轮追问', async (t) => {
   modelOutput = MODEL_QUESTION
   t.after(() => { modelOutput = MODEL_RESULT })

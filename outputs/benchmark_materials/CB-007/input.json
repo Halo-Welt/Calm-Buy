@@ -1,0 +1,52 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "LV Neverfull 托特包",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "奖励",
+        "累",
+        "心情",
+        "犒劳"
+      ],
+      "fallback_text": "今天很累，想买点东西奖励自己"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔",
+        "不一定"
+      ],
+      "fallback_text": "没有明确使用场景，就是想买"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "还能凑合",
+        "有包"
+      ],
+      "fallback_text": "现在的包还能用"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

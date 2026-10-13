@@ -1,0 +1,49 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "索尼 Alpha 7 IV",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "旅拍",
+        "人像",
+        "视频",
+        "题材",
+        "拍"
+      ],
+      "fallback_text": "主要拍旅行人像"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "偶尔",
+        "旅行",
+        "一个月"
+      ],
+      "fallback_text": "大概一个月几次出行才用"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "手机",
+        "凑合",
+        "镜头"
+      ],
+      "fallback_text": "现在用手机，暗光和虚化不够"
+    }
+  ]
+}

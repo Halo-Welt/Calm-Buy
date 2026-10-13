@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   assessSearchEvidence,
+  annotateSearchMeta,
   buildSearchQueries,
   collectImages,
   extractPriceAnchor,
@@ -10,16 +11,18 @@ const {
   isSearchConfigured,
   parsePrices,
   snippetImages,
-  sourceTier
+  sourceTier,
+  trustedReplyImages
 } = require('../src/search')
 
-test('检索按意图拆开：一条查价格渠道，一条查口碑缺点', () => {
+test('检索按意图拆开：价格、口碑和外观配图', () => {
   const queries = buildSearchQueries('未来眼镜')
-  assert.deepEqual(queries.map((item) => item.intent), ['price', 'reputation'])
+  assert.deepEqual(queries.map((item) => item.intent), ['price', 'reputation', 'image'])
   assert.match(queries[0].query, /未来眼镜/)
   assert.match(queries[0].query, /价格/)
   assert.match(queries[0].query, /京东/)
   assert.match(queries[1].query, /缺点/)
+  assert.match(queries[2].query, /商品图/)
 })
 
 test('最终轮补一条替代方案检索，并带上已确认的根本需求', () => {
@@ -171,5 +174,42 @@ test('同一利益主体的转载不能互相抬高可信度', () => {
   ])
   assert.equal(result.level, 'medium')
   assert.equal(result.independentExperienceSources, 1)
+})
+
+test('只回传商品页或已知 CDN 上的配图，丢掉来源不明图', () => {
+  const images = trustedReplyImages({
+    items: [
+      {
+        title: '京东',
+        url: 'https://item.jd.com/1.html',
+        sourceKind: 'shop',
+        images: [{ url: 'https://img14.360buyimg.com/n1/xm5.jpg', alt: 'XM5' }]
+      },
+      {
+        title: '洗稿站',
+        url: 'https://baijiahao.baidu.com/s?id=1',
+        sourceKind: 'farm',
+        images: [{ url: 'https://example.com/farm.jpg', alt: 'farm' }]
+      }
+    ],
+    images: [{ url: 'https://cdn.example.com/unknown.jpg' }]
+  })
+  assert.equal(images.length, 1)
+  assert.equal(images[0].url, 'https://img14.360buyimg.com/n1/xm5.jpg')
+
+  const annotated = annotateSearchMeta({ assistantMessage: '问一句' }, {
+    enabled: true,
+    provider: 'doubao',
+    items: [{
+      title: '京东',
+      url: 'https://item.jd.com/1.html',
+      sourceKind: 'shop',
+      images: [{ url: 'https://img14.360buyimg.com/n1/xm5.jpg' }]
+    }],
+    searchedAt: '2026-09-18T00:00:00.000Z',
+    credibility: { level: 'medium', hasPriceSource: true, independentExperienceSources: 0 }
+  })
+  assert.equal(annotated.images.length, 1)
+  assert.equal(annotated.searchUsed, true)
 })
 

@@ -39,57 +39,229 @@ const TIER_GUIDE = `决策量级不能只看价格，还要综合使用周期、
 - major：高价，或长期持有、难退换、明显占空间/时间、有持续付费或机会成本（车、电脑、家具、课程、会员年卡）。
 即使价格不高，只要长期承诺或退出成本高，也应提高量级；高价但可无损退换，只能作为初始锚点。`
 
-const FALLBACK_QUESTIONS = {
-  trivial: [
-    {
-      message: '这次是解决一个具体需要，还是纯粹想尝个鲜？',
-      options: ['有具体需要', '想尝个鲜', '囤着备用'],
-      label: '快速定性'
+function shortProductName(productText = '') {
+  const name = String(productText || '')
+    .replace(/^我想买[:：]?\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return name.slice(0, 18) || '这件东西'
+}
+
+function searchHaystack(searchEvidence) {
+  return (searchEvidence?.items || [])
+    .map((item) => `${item.title || ''} ${item.content || ''}`)
+    .join(' ')
+    .slice(0, 800)
+}
+
+const GENERIC_PACK = {
+  id: 'generic',
+  outcome: {
+    message: (name) => `${name}你最想先解决哪件事？`,
+    options: () => ['现有的撑不住了', '想做现在做不到的事', '先体验一下'],
+    label: '锁定真实需求'
+  },
+  scene: {
+    message: (name) => `你通常什么时候会用到${name}？`,
+    options: () => ['几乎每天', '一周几次', '偶尔才用'],
+    label: '确认发生场景'
+  },
+  gap: {
+    message: (name) => `没有${name}的时候，你现在怎么对付？`,
+    options: () => ['有旧的但不好用', '基本没有办法', '其实还能凑合'],
+    label: '找出真实缺口'
+  },
+  budget: {
+    message: (name) => `${name}预算上你更接近哪种？`,
+    options: () => ['已经想好上限', '还在比价', '价格不是主要顾虑'],
+    label: '确认预算取向'
+  },
+  urgency: {
+    message: (name) => `如果现在不买${name}，最坏会怎样？`,
+    options: () => ['会一直影响我', '有点难受但能忍', '其实没什么影响'],
+    label: '测试迫切度'
+  }
+}
+
+const CATEGORY_PACKS = [
+  {
+    id: 'chair',
+    re: /椅|座椅|沙发|embody|aeron|人体工学/,
+    outcome: {
+      message: (name) => `${name}你最想先解决哪件事？`,
+      options: () => ['久坐腰酸背痛', '坐姿和腰托撑不住', '旧椅已经快散架'],
+      label: '椅子真实需求'
+    },
+    scene: {
+      message: () => '这把椅一天大概要坐多久？',
+      options: () => ['工作日坐满八小时', '每天坐几小时', '偶尔坐坐'],
+      label: '久坐时长'
+    },
+    gap: {
+      message: () => '现在这张椅最卡在哪？',
+      options: () => ['没有腰托或撑不住', '尺寸高度不对', '其实还能凑合'],
+      label: '旧椅缺口'
     }
-  ],
-  standard: [
-    {
-      message: '抛开这件商品，你最想解决的具体麻烦是什么？',
-      options: ['现有的东西不好用', '想做一件现在做不到的事', '主要是想体验一下'],
-      label: '锁定真实需求'
+  },
+  {
+    id: 'camera',
+    re: /相机|微单|单反|镜头|a7c|a7m|z6|z8|r5|r6|gopro|运动相机/,
+    outcome: {
+      message: (name) => `${name}你最想拍清楚什么？`,
+      options: () => ['人像和旅行记录', '工作和创作素材', '先体验一下器材'],
+      label: '拍摄真实需求'
     },
-    {
-      message: '这个问题一般什么时候会出现？',
-      options: ['几乎每天都会碰到', '一周几次', '偶尔才有'],
-      label: '确认发生场景'
+    scene: {
+      message: () => '这些照片主要会在哪拍？',
+      options: () => ['出门旅行和街拍', '室内棚拍或固定场景', '偶尔才拿出来'],
+      label: '拍摄场景'
     },
-    {
-      message: '现在你是怎么对付的，最卡在哪一步？',
-      options: ['有办法但不好用', '基本没有办法', '其实还能凑合'],
-      label: '找出真实缺口'
+    gap: {
+      message: () => '现在这套器材最卡在哪？',
+      options: () => ['画质或暗光不够', '太重带不走', '其实手机也能凑合'],
+      label: '器材缺口'
     }
-  ],
-  major: [
-    {
-      message: '抛开这件商品，你最想解决的具体麻烦是什么？',
-      options: ['替换现在不好用的东西', '想开始一件现在做不到的事', '暂时说不好'],
-      label: '锁定真实需求'
+  },
+  {
+    id: 'headphones',
+    re: /耳机|耳塞|降噪|xm5|xm4|airpods|头戴/,
+    outcome: {
+      message: (name) => `${name}你最想挡掉的是哪种声音？`,
+      options: () => ['地铁飞机的轰鸣', '办公室人声', '夜里别人的动静'],
+      label: '降噪真实需求'
     },
-    {
-      message: '这个问题大概多久出现一次？',
-      options: ['几乎每天', '每周几次', '一个月都不一定碰到'],
-      label: '确认发生频率'
+    scene: {
+      message: () => '这副耳机一天大概戴多久？',
+      options: () => ['通勤几乎全程戴', '工作时戴几小时', '偶尔戴戴'],
+      label: '佩戴时长'
     },
-    {
-      message: '现在你用什么顶着，具体卡在哪一步？',
-      options: ['有旧的，性能不够', '有旧的，坏了', '完全没有'],
-      label: '找出真实缺口'
-    },
-    {
-      message: '预算上你更接近哪种想法？',
-      options: ['已经想好上限', '还在比价', '价格不是主要顾虑'],
-      label: '确认预算取向'
-    },
-    {
-      message: '如果现在不买，最坏会怎样？',
-      options: ['会一直影响我', '有点难受但能忍', '其实没什么影响'],
-      label: '测试迫切度'
+    gap: {
+      message: () => '现在这副耳机最卡在哪？',
+      options: () => ['漏音或降噪不够', '夹头戴不久', '其实还能凑合'],
+      label: '旧耳机缺口'
     }
+  },
+  {
+    id: 'laptop',
+    re: /笔记本|电脑|macbook|thinkpad|轻薄本|游戏本/,
+    outcome: {
+      message: (name) => `${name}你最想先解决哪件事？`,
+      options: () => ['现在这台又卡又慢', '要出门带着干活', '先换新体验一下'],
+      label: '电脑真实需求'
+    },
+    scene: {
+      message: () => '这台电脑主要在哪用？',
+      options: () => ['每天办公或上课', '出门差旅带着', '偶尔在家用用'],
+      label: '使用场景'
+    },
+    gap: {
+      message: () => '现在这台电脑最卡在哪？',
+      options: () => ['性能或续航不够', '屏幕或接口不对', '其实还能凑合'],
+      label: '旧电脑缺口'
+    }
+  },
+  {
+    id: 'vacuum',
+    re: /吸尘器|扫地机|洗地机|除螨/,
+    outcome: {
+      message: (name) => `${name}你最想先解决哪块脏？`,
+      options: () => ['地板毛发灰尘', '沙发床品除螨', '先体验一下新品'],
+      label: '清洁真实需求'
+    },
+    scene: {
+      message: () => '家里大概多久需要清一次？',
+      options: () => ['几乎每天都要扫', '一周两三次', '偶尔才扫'],
+      label: '清洁频率'
+    },
+    gap: {
+      message: () => '现在这套清洁工具最卡在哪？',
+      options: () => ['吸力或边角扫不干净', '太重懒得拿', '其实还能凑合'],
+      label: '旧工具缺口'
+    }
+  },
+  {
+    id: 'car',
+    re: /汽车|轿车|SUV|新能源|特斯拉|tesla|model\s?[3y]/i,
+    outcome: {
+      message: (name) => `${name}你最想先解决哪件事？`,
+      options: () => ['通勤代步更省事', '家人出行更从容', '先体验一下新车'],
+      label: '用车真实需求'
+    },
+    scene: {
+      message: () => '这台车一周大概开几次？',
+      options: () => ['工作日几乎天天开', '周末才开', '一个月用不了几次'],
+      label: '用车频率'
+    },
+    gap: {
+      message: () => '现在出行最卡在哪？',
+      options: () => ['没车或旧车撑不住', '空间油耗不对', '其实还能凑合'],
+      label: '出行缺口'
+    }
+  },
+  {
+    id: 'phone',
+    re: /手机|iphone|华为|小米|pixel|galaxy/,
+    outcome: {
+      message: (name) => `${name}你最想先解决哪件事？`,
+      options: () => ['旧机卡顿续航不行', '拍照或屏幕不够用', '先换新体验一下'],
+      label: '换机真实需求'
+    },
+    scene: {
+      message: () => '这台手机一天大概握多久？',
+      options: () => ['几乎不离手', '工作和通勤在用', '偶尔看看'],
+      label: '使用强度'
+    },
+    gap: {
+      message: () => '现在这台手机最卡在哪？',
+      options: () => ['卡顿或续航不够', '相机屏幕不满意', '其实还能凑合'],
+      label: '旧机缺口'
+    }
+  },
+  {
+    id: 'course',
+    re: /课|培训|会员年卡|训练营|辅导/,
+    outcome: {
+      message: (name) => `${name}你最想先拿到哪项结果？`,
+      options: () => ['工作里马上用得上', '系统补一块能力', '先体验一下内容'],
+      label: '学习真实需求'
+    },
+    scene: {
+      message: () => '你每周能稳定拿出多少时间学？',
+      options: () => ['每周能拿出整块时间', '只能碎片时间', '还没排上'],
+      label: '投入时间'
+    },
+    gap: {
+      message: () => '没有这门课的时候，你现在怎么学？',
+      options: () => ['有免费资料但学不动', '完全没有路径', '其实还能自学'],
+      label: '学习缺口'
+    }
+  }
+]
+
+function matchCategoryPack(productText = '', searchEvidence) {
+  const hay = `${productText} ${searchHaystack(searchEvidence)}`
+  return CATEGORY_PACKS.find((pack) => pack.re.test(hay)) || GENERIC_PACK
+}
+
+function packQuestion(slot, name) {
+  return {
+    message: slot.message(name),
+    options: withSelfSupplement(slot.options(name)),
+    label: slot.label
+  }
+}
+
+function slotsForTier(pack, tier) {
+  const resolved = resolveTier(tier)
+  if (resolved === 'trivial') return [pack.outcome || GENERIC_PACK.outcome]
+  const extras = resolved === 'major'
+    ? [pack.budget || GENERIC_PACK.budget, pack.urgency || GENERIC_PACK.urgency]
+    : []
+  return [
+    pack.outcome || GENERIC_PACK.outcome,
+    pack.scene || GENERIC_PACK.scene,
+    pack.gap || GENERIC_PACK.gap,
+    ...extras
   ]
 }
 
@@ -183,14 +355,11 @@ function withSelfSupplement(options = []) {
   return [...cleaned, SELF_SUPPLEMENT_OPTION]
 }
 
-function pickFollowUp(questionCount, tier) {
-  const pool = FALLBACK_QUESTIONS[resolveTier(tier)]
+function pickFollowUp(questionCount, tier, productText = '', searchEvidence) {
+  const name = shortProductName(productText)
+  const pool = slotsForTier(matchCategoryPack(productText, searchEvidence), tier)
   const index = Math.min(Math.max(questionCount, 0), pool.length - 1)
-  const followUp = pool[index]
-  return {
-    ...followUp,
-    options: withSelfSupplement(followUp.options)
-  }
+  return packQuestion(pool[index], name)
 }
 
 /** rootNeed 如果只是在复述商品名，就还没拆到真实需求 */
@@ -215,38 +384,28 @@ function needDiscoveryComplete(draft = {}, productText = '', tier = 'standard') 
   return hasOutcome && hasScene && hasGap && !isProductRestatement(draft.rootNeed, productText)
 }
 
-function pickNeedFollowUp(draft = {}, productText = '', questionCount = 0, tier = 'standard') {
+function pickNeedFollowUp(draft = {}, productText = '', questionCount = 0, tier = 'standard', searchEvidence) {
+  const name = shortProductName(productText)
+  const pack = matchCategoryPack(productText, searchEvidence)
   if (!String(draft.desiredOutcome || draft.functionalNeed || '').trim()
     || isProductRestatement(draft.rootNeed, productText)) {
-    return {
-      message: '抛开这件商品，你最想解决的具体麻烦是什么？',
-      options: withSelfSupplement(['现有的东西不好用', '想做一件现在做不到的事', '主要是想体验一下']),
-      label: '锁定真实需求'
-    }
+    return packQuestion(pack.outcome || GENERIC_PACK.outcome, name)
   }
   if (!String(draft.scene || '').trim()) {
-    return {
-      message: '这个问题一般什么时候会出现？',
-      options: withSelfSupplement(['几乎每天都会碰到', '一周几次', '偶尔才有']),
-      label: '确认发生场景'
-    }
+    return packQuestion(pack.scene || GENERIC_PACK.scene, name)
   }
   if (!String(draft.gap || draft.currentAlternative || '').trim()) {
-    return {
-      message: '现在你是怎么对付的，最卡在哪一步？',
-      options: withSelfSupplement(['有办法但不好用', '基本没有办法', '其实还能凑合']),
-      label: '找出真实缺口'
-    }
+    return packQuestion(pack.gap || GENERIC_PACK.gap, name)
   }
   const dimension = nextOpenDimension(draft)
   if (dimension) {
     return {
-      message: `在「${dimension}」上，你的实际要求接近哪种？`,
+      message: `对${name}来说，「${dimension}」你更在意哪种？`,
       options: withSelfSupplement(['必须做到位', '够用就行', '其实没太在意']),
       label: `确认${dimension}`
     }
   }
-  return pickFollowUp(questionCount, tier)
+  return pickFollowUp(questionCount, tier, productText, searchEvidence)
 }
 
 /** 三件套齐了以后，追问该瞄准这个品类真正决定买错买对的维度，而不是继续套通用模板 */
@@ -269,6 +428,7 @@ module.exports = {
   looksTrivialProduct,
   looksAmbiguousProduct,
   isProductRestatement,
+  matchCategoryPack,
   needDiscoveryComplete,
   nextOpenDimension,
   pickFollowUp,
@@ -277,6 +437,7 @@ module.exports = {
   resolvePlan,
   resolveTier,
   shouldResearchNow,
+  shortProductName,
   tierFromPrice,
   withSelfSupplement
 }

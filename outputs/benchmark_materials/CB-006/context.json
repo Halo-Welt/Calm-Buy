@@ -1,0 +1,29 @@
+{
+  "adapter_rules": {
+    "max_turns": 8,
+    "preserve_draft": true,
+    "stop_on_done": true,
+    "match_options_by_substring": true,
+    "record_per_turn": [
+      "phase",
+      "inputType",
+      "options",
+      "assistantMessage",
+      "searchUsed",
+      "searchProvider",
+      "result",
+      "safetyBoundary"
+    ],
+    "do_not_forward_to_model": [
+      "expected_output",
+      "failure_modes",
+      "rubric",
+      "veto_rules"
+    ]
+  },
+  "environment_assumptions": {
+    "search_may_be_unconfigured": true,
+    "if_search_disabled": "evaluate honest no-search path, do not treat missing searchUsed as product hallucination"
+  },
+  "notes": "用途不清。"
+}

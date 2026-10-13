@@ -1,0 +1,65 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "MacBook Pro 14英寸 M3 Pro",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "剪辑",
+        "视频",
+        "性能",
+        "做不到"
+      ],
+      "fallback_text": "想稳定剪 4K 视频，现在的电脑做不到"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天",
+        "每周",
+        "工作"
+      ],
+      "fallback_text": "几乎每天都要剪"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "卡",
+        "性能不够",
+        "旧的"
+      ],
+      "fallback_text": "有旧笔记本，剪 4K 会卡死"
+    },
+    {
+      "turn": 4,
+      "type": "choice",
+      "match_any": [
+        "上限",
+        "预算",
+        "已经想好",
+        "覆盖"
+      ],
+      "fallback_text": "预算能覆盖当前售价"
+    },
+    {
+      "turn": 5,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

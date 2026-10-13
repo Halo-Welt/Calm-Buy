@@ -1,0 +1,48 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "索尼 WH-1000XM5",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "地铁",
+        "通勤"
+      ],
+      "fallback_text": "每天地铁通勤挡轰鸣"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天"
+      ],
+      "fallback_text": "几乎每天"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "不够"
+      ],
+      "fallback_text": "现有半入耳不够"
+    },
+    {
+      "turn": 4,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

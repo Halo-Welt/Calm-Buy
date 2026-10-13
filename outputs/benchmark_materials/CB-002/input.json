@@ -1,0 +1,68 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "得到App年度会员",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "替换",
+        "麻烦",
+        "做不到",
+        "剪辑",
+        "载人",
+        "久坐"
+      ],
+      "fallback_text": "替换现在不好用的东西"
+    },
+    {
+      "turn": 2,
+      "type": "choice",
+      "match_any": [
+        "每天",
+        "几乎",
+        "每周"
+      ],
+      "fallback_text": "几乎每天"
+    },
+    {
+      "turn": 3,
+      "type": "choice",
+      "match_any": [
+        "性能不够",
+        "旧的",
+        "完全没有",
+        "卡"
+      ],
+      "fallback_text": "有旧的，性能不够"
+    },
+    {
+      "turn": 4,
+      "type": "choice",
+      "match_any": [
+        "上限",
+        "预算",
+        "已经想好",
+        "覆盖"
+      ],
+      "fallback_text": "已经想好上限"
+    },
+    {
+      "turn": 5,
+      "type": "confirm",
+      "confirmation": true,
+      "text": "对，就是这个"
+    }
+  ]
+}

@@ -38,7 +38,8 @@ function buildSearchQueries(productText, draft = {}, { round = 'first' } = {}) {
 
   const queries = [
     { intent: 'price', query: `${product} 价格 多少钱 京东 淘宝 拼多多` },
-    { intent: 'reputation', query: `${product} 值不值得买 真实评价 缺点 翻车` }
+    { intent: 'reputation', query: `${product} 值不值得买 真实评价 缺点 翻车` },
+    { intent: 'image', query: `${product} 外观 商品图 官网` }
   ]
 
   if (round === 'final') {
@@ -139,6 +140,39 @@ function sourceTier(url = '') {
   return hit ? { kind: hit.kind, weight: hit.weight } : { kind: 'general', weight: 1 }
 }
 
+const TRUSTED_IMAGE_KINDS = new Set(['official', 'shop', 'community', 'media'])
+const TRUSTED_IMAGE_HOSTS = /360buyimg|alicdn|taobaocdn|suning\.com|pddpic|yangkeduo|xiaohongshu|xhscdn|zhihuimg|smzdmimg|hdslb|mi-img|vmall|huawei|samsung|sony\.|apple\.com|sspai|ithome|autohome|pconline|zol\.com/
+
+function isTrustedImage(url, sourceKind) {
+  if (TRUSTED_IMAGE_KINDS.has(sourceKind)) return true
+  try {
+    return TRUSTED_IMAGE_HOSTS.test(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
+function trustedReplyImages(searchEvidence, limit = 3) {
+  const candidates = []
+  for (const item of searchEvidence?.items || []) {
+    for (const img of item.images || []) {
+      if (img?.url && isTrustedImage(img.url, item.sourceKind)) {
+        candidates.push({
+          url: img.url,
+          alt: img.alt || item.title || '',
+          sourceUrl: item.url || ''
+        })
+      }
+    }
+  }
+  for (const img of searchEvidence?.images || []) {
+    if (img?.url && isTrustedImage(img.url, img.sourceKind || '')) {
+      candidates.push(img)
+    }
+  }
+  return collectImages(candidates, limit)
+}
+
 function publisherGroup(url = '') {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '')
@@ -234,7 +268,7 @@ function extractPriceAnchor(items = []) {
   }
 }
 
-async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
+async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 5000 } = {}) {
   const apiKey = getDoubaoApiKey()
   if (!apiKey) {
     const error = new Error('未配置 DOUBAO_SEARCH_API_KEY')
@@ -256,7 +290,7 @@ async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 3500 } = 
         Query: String(query || '').slice(0, 100),
         DocCount: Math.min(Math.max(Number(maxResults) || 4, 1), 20),
         MaxSnippetLength: 800,
-        MaxImageCountPerDoc: 0
+        MaxImageCountPerDoc: 2
       }),
       signal: controller.signal
     })
@@ -325,7 +359,7 @@ async function doubaoGlobalSearch(query, { maxResults = 4, timeoutMs = 3500 } = 
   }
 }
 
-async function tavilySearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
+async function tavilySearch(query, { maxResults = 4, timeoutMs = 3500, includeImages = false } = {}) {
   const apiKey = process.env.TAVILY_API_KEY || process.env.SEARCH_API_KEY
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -355,6 +389,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
       title: String(item.title || '').slice(0, 160),
       url: String(item.url || '').slice(0, 500),
       content: String(item.content || item.snippet || '').slice(0, 500),
+      images: collectImages(item.images || item.image_urls || []),
       rank: index,
       query
     }))
@@ -372,7 +407,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
           query,
           search_depth: 'basic',
           include_answer: false,
-          include_images: false,
+          include_images: includeImages,
           include_raw_content: false,
           max_results: maxResults,
           topic: 'general'
@@ -398,7 +433,7 @@ async function tavilySearch(query, { maxResults = 4, timeoutMs = 3500 } = {}) {
         query,
         search_depth: 'basic',
         include_answer: false,
-        include_images: false,
+        include_images: includeImages,
         include_raw_content: false,
         max_results: maxResults,
         topic: 'general'
@@ -462,6 +497,7 @@ function asSearchResult(provider, raw, intent) {
 
 async function searchOnce(query, { maxResults = 3, intent = 'general' } = {}) {
   const provider = preferredProvider()
+  const includeImages = intent === 'image'
   if (provider === 'doubao') {
     try {
       return asSearchResult('doubao', await doubaoGlobalSearch(query, { maxResults }), intent)
@@ -479,16 +515,17 @@ async function searchOnce(query, { maxResults = 3, intent = 'general' } = {}) {
         doubaoCode: error.doubaoCode || null,
         message: error.message
       }))
-      return asSearchResult('tavily', await tavilySearch(query, { maxResults }), intent)
+      return asSearchResult('tavily', await tavilySearch(query, { maxResults, includeImages }), intent)
     }
   }
-  return asSearchResult('tavily', await tavilySearch(query, { maxResults }), intent)
+  return asSearchResult('tavily', await tavilySearch(query, { maxResults, includeImages }), intent)
 }
 
 const INTENT_LABELS = {
   price: '价格/渠道',
   reputation: '口碑/缺点',
   alternative: '替代方案',
+  image: '外观/配图',
   general: '综合'
 }
 
@@ -556,6 +593,7 @@ function interleaveByIntent(items, limit) {
 function hasDecisionValue(item) {
   if (!item?.url) return false
   if (item.sourceKind === 'shop') return true
+  if (item.intent === 'image' && (item.images || []).length) return true
   const content = String(item.content || '')
   return content.length >= 16 || parsePrices(content).length > 0
 }
@@ -591,7 +629,10 @@ async function researchProduct(productText, draft = {}, { round = 'first' } = {}
 
   const budget = round === 'final' ? 'full' : 'brief'
   const limited = interleaveByIntent(items, SUMMARY_BUDGETS[budget].maxItems)
-  const images = collectImages(imageCandidates, 4)
+  const images = trustedReplyImages({
+    items: limited,
+    images: collectImages(imageCandidates, 8)
+  }, 4)
   const priceAnchor = extractPriceAnchor(limited)
   const credibility = assessSearchEvidence(limited)
 
@@ -657,7 +698,7 @@ function annotateSearchMeta(result, searchEvidence) {
       hasPriceSource: false,
       independentExperienceSources: 0
     },
-    images: []
+    images: trustedReplyImages(searchEvidence, 3)
   }
 }
 
@@ -681,5 +722,6 @@ module.exports = {
   snippetImages,
   sourceTier,
   tavilySearch,
+  trustedReplyImages,
   platformFromUrl
 }

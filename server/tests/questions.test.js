@@ -72,3 +72,13 @@ test('追问兜底会挑一个还没问过的品类维度', () => {
   }), '便携度')
   assert.equal(nextOpenDimension({ keyDimensions: ['便携度'], askedDimensions: ['便携度'] }), '')
 })
+
+test('不同商品的澄清问题和选项不能写成同一套模板', () => {
+  const { pickNeedFollowUp } = require('../src/questions')
+  const chair = pickNeedFollowUp({}, '人体工学椅', 0, 'standard')
+  const camera = pickNeedFollowUp({}, '索尼微单相机', 0, 'standard')
+  assert.notEqual(chair.message, camera.message)
+  assert.notEqual(chair.options[0], camera.options[0])
+  assert.match(chair.message, /椅/)
+  assert.match(camera.message, /拍/)
+})

@@ -1,4 +1,33 @@
-const { isFinalRound, pickFollowUp, planForRequest, resolveTier } = require('./questions')
+const { isFinalRound, pickNeedFollowUp, planForRequest, resolveTier } = require('./questions')
+
+function lastUserContent(request) {
+  return [...(request.messages || [])]
+    .reverse()
+    .find((message) => message.role === 'user')?.content || ''
+}
+
+function absorbUserAnswer(request) {
+  const draft = { ...(request.draft || {}) }
+  const lastUser = lastUserContent(request)
+  const questionCount = request.questionCount || 0
+  if (!lastUser || /^我想买[:：]/.test(lastUser)) return draft
+
+  if (questionCount >= 1 && !String(draft.desiredOutcome || draft.functionalNeed || '').trim()) {
+    draft.desiredOutcome = lastUser
+    draft.functionalNeed = lastUser
+    draft.rootNeed = lastUser
+    draft.evidenceQuotes = [lastUser]
+  } else if (questionCount >= 2 && !String(draft.scene || '').trim()) {
+    draft.scene = lastUser
+    draft.frequency = lastUser
+    draft.evidenceQuotes = [...(draft.evidenceQuotes || []), lastUser].slice(-6)
+  } else if (questionCount >= 3 && !String(draft.gap || draft.currentAlternative || '').trim()) {
+    draft.gap = lastUser
+    draft.currentAlternative = lastUser
+    draft.evidenceQuotes = [...(draft.evidenceQuotes || []), lastUser].slice(-6)
+  }
+  return draft
+}
 
 function emptyDraft(request, overrides = {}) {
   return {
@@ -24,6 +53,7 @@ function emptyDraft(request, overrides = {}) {
     missingDimensions: ['真实场景', '使用频率', '当前替代方案'],
     readiness: 0.2,
     userConfirmedNeed: false,
+    ...request.draft,
     ...overrides
   }
 }
@@ -35,9 +65,17 @@ function shouldKeepAsking(request) {
 }
 
 function buildClarifyFallback(request, errorCode) {
-  const tier = resolveTier(request.draft?.decisionTier)
-  const plan = planForRequest(request)
-  const followUp = pickFollowUp(request.questionCount || 0, tier)
+  const draft = absorbUserAnswer(request)
+  const enriched = { ...request, draft }
+  const tier = resolveTier(draft.decisionTier)
+  const plan = planForRequest(enriched)
+  const followUp = pickNeedFollowUp(
+    draft,
+    request.productText,
+    request.questionCount || 0,
+    tier,
+    request.searchEvidence
+  )
   const current = Math.min(plan.maxQuestions, Math.max(1, (request.questionCount || 0) + 1))
 
   return {
@@ -50,7 +88,10 @@ function buildClarifyFallback(request, errorCode) {
       total: plan.maxQuestions,
       label: followUp.label
     },
-    draft: emptyDraft(request, { readiness: Math.min(0.4, 0.1 * current) }),
+    draft: emptyDraft(enriched, {
+      ...draft,
+      readiness: Math.min(0.4, 0.1 * current)
+    }),
     result: null,
     mode: 'fallback',
     error: { code: errorCode }

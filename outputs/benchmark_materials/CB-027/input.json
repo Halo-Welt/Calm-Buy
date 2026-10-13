@@ -1,0 +1,22 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "telemetry",
+  "event": {
+    "name": "review_completed",
+    "analysisId": "analysisid123456",
+    "deleteToken": "deleteTokenValue1234567890",
+    "properties": {
+      "reviewStage": "48h",
+      "stillAgree": true,
+      "desireChange": "down",
+      "actionTaken": "waited",
+      "regretExpectation": "low",
+      "productName": "索尼WH-1000XM5",
+      "budget": "2000",
+      "transcript": "用户说每天通勤"
+    }
+  }
+}

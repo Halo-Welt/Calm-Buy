@@ -1,7 +1,7 @@
 const http = require('node:http')
 const { analyzeRequestSchema } = require('./schema')
 const { buildMessages } = require('./prompt')
-const { callDeepSeek, llmBudget } = require('./deepseek')
+const { callDeepSeek, llmBudget, llmStatus } = require('./deepseek')
 const { applyPolicy } = require('./policy')
 const { buildFallbackResponse } = require('./fallback')
 const { isFinalRound, shouldResearchNow } = require('./questions')
@@ -161,23 +161,31 @@ async function analyze(requestData) {
   const enriched = await attachSearchEvidence(requestData)
   const messages = buildMessages(enriched)
   const budget = llmBudget(isFinalRound(requestData))
-  let output = await callDeepSeek(messages, budget)
 
   try {
-    const result = applyPolicy(output, enriched)
-    return annotateSearchMeta(result, enriched.searchEvidence)
-  } catch (validationError) {
-    const remainingMs = deadlineMs - (Date.now() - startedAt)
-    if (remainingMs < 2000) throw validationError
-    output = await callDeepSeek([
-      ...messages,
-      {
-        role: 'system',
-        content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
-      }
-    ], { ...budget, timeoutMs: Math.min(budget.timeoutMs, remainingMs) })
-    const result = applyPolicy(output, enriched)
-    return annotateSearchMeta(result, enriched.searchEvidence)
+    let output = await callDeepSeek(messages, budget)
+
+    try {
+      const result = applyPolicy(output, enriched)
+      return annotateSearchMeta(result, enriched.searchEvidence)
+    } catch (validationError) {
+      const remainingMs = deadlineMs - (Date.now() - startedAt)
+      if (remainingMs < 2000) throw validationError
+      output = await callDeepSeek([
+        ...messages,
+        {
+          role: 'system',
+          content: `上一份输出未通过结构校验，问题是：${validationError.message}。请严格按约定字段重新输出完整合法 json，不要省略字段，不要改字段名。`
+        }
+      ], { ...budget, timeoutMs: Math.min(budget.timeoutMs, remainingMs) })
+      const result = applyPolicy(output, enriched)
+      return annotateSearchMeta(result, enriched.searchEvidence)
+    }
+  } catch (error) {
+    return annotateSearchMeta(
+      buildFallbackResponse(enriched, error.code || 'ANALYSIS_FAILED'),
+      enriched.searchEvidence
+    )
   }
 }
 
@@ -194,6 +202,7 @@ const server = http.createServer(async (request, response) => {
     sendJson(response, 200, {
       ok: true,
       deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
+      deepseek: llmStatus(),
       searchEnabled: isSearchConfigured(),
       searchProvider: process.env.SEARCH_PROVIDER || 'auto',
       doubaoConfigured: isDoubaoConfigured(),
@@ -246,7 +255,11 @@ const server = http.createServer(async (request, response) => {
         searchProvider: result.searchProvider || null,
         durationMs: Date.now() - startedAt
       }))
-      sendJson(response, 200, { ...result, mode: 'live', error: null })
+      sendJson(response, 200, {
+        ...result,
+        mode: result.mode || 'live',
+        error: result.error || null
+      })
     } catch (error) {
       const errorCode = error.code || 'ANALYSIS_FAILED'
       console.error(JSON.stringify({

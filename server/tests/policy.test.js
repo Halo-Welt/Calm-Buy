@@ -295,6 +295,29 @@ test('追问未完成时 fallback 继续 clarify，且轮数上限跟随决策�
   assert.doesNotThrow(() => analyzeResponseSchema.parse(fallback))
 })
 
+test('fallback 澄清问题跟着商品变，椅子和相机不会问同一句', () => {
+  const chair = buildFallbackResponse(request({
+    productText: '人体工学椅',
+    phase: 'clarify_need',
+    questionCount: 0,
+    confirmation: null,
+    draft: { decisionTier: 'standard' },
+    messages: [{ role: 'user', content: '我想买：人体工学椅' }]
+  }), 'DEEPSEEK_TIMEOUT')
+  const camera = buildFallbackResponse(request({
+    productText: '索尼微单相机',
+    phase: 'clarify_need',
+    questionCount: 0,
+    confirmation: null,
+    draft: { decisionTier: 'standard' },
+    messages: [{ role: 'user', content: '我想买：索尼微单相机' }]
+  }), 'DEEPSEEK_TIMEOUT')
+  assert.notEqual(chair.assistantMessage, camera.assistantMessage)
+  assert.notEqual(chair.options[0], camera.options[0])
+  assert.match(chair.assistantMessage, /椅/)
+  assert.match(camera.assistantMessage, /拍/)
+})
+
 test('冲动温度高时中等决策多留一轮追问', () => {
   const output = modelOutput({
     phase: 'clarify_need',
@@ -346,7 +369,8 @@ test('中等决策未拆清真实需求时不能提前确认购买目标', () =>
 
   assert.equal(result.phase, 'clarify_need')
   assert.equal(result.result, null)
-  assert.match(result.assistantMessage, /麻烦|什么时候|对付/)
+  assert.match(result.assistantMessage, /耳机|声音|挡掉/)
+  assert.doesNotMatch(result.assistantMessage, /想买降噪耳机，对吗/)
 })
 
 test('冲动温度高不影响小额决策的轮数', () => {

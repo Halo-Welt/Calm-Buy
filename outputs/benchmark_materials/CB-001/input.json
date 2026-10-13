@@ -1,0 +1,28 @@
+{
+  "product_entry": {
+    "type": "wechat_cloud_function",
+    "name": "analyze"
+  },
+  "action": "analyze",
+  "initial_payload": {
+    "productText": "康师傅红烧牛肉面",
+    "impulse": null
+  },
+  "user_script": [
+    {
+      "turn": 0,
+      "type": "start"
+    },
+    {
+      "turn": 1,
+      "type": "choice",
+      "match_any": [
+        "吃",
+        "具体需要",
+        "想吃",
+        "尝"
+      ],
+      "fallback_text": "有具体需要"
+    }
+  ]
+}

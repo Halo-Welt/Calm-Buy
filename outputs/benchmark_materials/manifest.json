@@ -1,0 +1,606 @@
+{
+  "schema_version": "1.0",
+  "benchmark_version": "calm-buy-eval-v1-2026-09-18",
+  "files": [
+    {
+      "case_id": "CB-001",
+      "path": "benchmark_materials/CB-001/input.json",
+      "media_type": "application/json",
+      "sha256": "69be7d0cde7d6fe71bf535c5bd3f7aa48f6173354c094ef17c6edbc749e34ea4",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-001",
+      "path": "benchmark_materials/CB-001/context.json",
+      "media_type": "application/json",
+      "sha256": "96bc65048c3bf27d5362483573ea879ac4d282c8c7cfeca0e7580400f3aed4a7",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-002",
+      "path": "benchmark_materials/CB-002/input.json",
+      "media_type": "application/json",
+      "sha256": "28fa0a7993a205a2e49d936bfb010d108a14191ea587e341bd428779d36f8c14",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-002",
+      "path": "benchmark_materials/CB-002/context.json",
+      "media_type": "application/json",
+      "sha256": "a56f286b5c5a85d4cb3f1d6f7bf1b183ffb2dc8773157c072ad509f413814de4",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-003",
+      "path": "benchmark_materials/CB-003/input.json",
+      "media_type": "application/json",
+      "sha256": "856dc545ed5db8650617985a2c477b6c48887a56511f4649ff40428b48661aba",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-003",
+      "path": "benchmark_materials/CB-003/context.json",
+      "media_type": "application/json",
+      "sha256": "8e9987e9d2e65caad0774776226e885f178f538357ddb78766d1ee0fd1660783",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-004",
+      "path": "benchmark_materials/CB-004/input.json",
+      "media_type": "application/json",
+      "sha256": "c112897226b9f499d4f4104ef332775a74dbd61cd3dca80b675f9a035a36370c",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-004",
+      "path": "benchmark_materials/CB-004/context.json",
+      "media_type": "application/json",
+      "sha256": "14b133d8ccddfc2fef4f596da8dd818ce3aa307e95227612f30f46bf584656fb",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-005",
+      "path": "benchmark_materials/CB-005/input.json",
+      "media_type": "application/json",
+      "sha256": "558580c7ec4f89581aa42007c888f4f1ebd81cce2a0a884728c7d067d17aa737",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-005",
+      "path": "benchmark_materials/CB-005/context.json",
+      "media_type": "application/json",
+      "sha256": "7e03a4cd8b0d4f36113dc04674dbce0fc1f227131bd28677957101ee469fb7c7",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-006",
+      "path": "benchmark_materials/CB-006/input.json",
+      "media_type": "application/json",
+      "sha256": "447b2c6c8191db649e14de1ff8abc49b576c455bcb8b4e90cab03c7ac5adc15b",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-006",
+      "path": "benchmark_materials/CB-006/context.json",
+      "media_type": "application/json",
+      "sha256": "f83313a711269dc686cd32349613fa6318aecc41a01fa51c23ae1f4ba0e11637",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-007",
+      "path": "benchmark_materials/CB-007/input.json",
+      "media_type": "application/json",
+      "sha256": "4a5ae8888689e140722926ec791f04773a0f87ba2575a7eb2350848764cdc678",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-007",
+      "path": "benchmark_materials/CB-007/context.json",
+      "media_type": "application/json",
+      "sha256": "b46cab159863d63197cb123acd1678b3013867d4c7cc4ef9611036fc92f5b5b7",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-008",
+      "path": "benchmark_materials/CB-008/input.json",
+      "media_type": "application/json",
+      "sha256": "b758044947daf725f0e57c875397f1bb6e58a92d044e7acd422db8ca9112ea1d",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-008",
+      "path": "benchmark_materials/CB-008/context.json",
+      "media_type": "application/json",
+      "sha256": "ac202ef7e29443d463cafad9a7e5a4fd94a322cda896f1596966c25ac90aa4e3",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-009",
+      "path": "benchmark_materials/CB-009/input.json",
+      "media_type": "application/json",
+      "sha256": "d551ac94bd925c3a69f442708db966003e8c4f4383573a36acc86b2db1645fe1",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-009",
+      "path": "benchmark_materials/CB-009/context.json",
+      "media_type": "application/json",
+      "sha256": "3d32a27191d1a63d742842169c882924b3ae99dfe1e43c41a0720bfb60717c8e",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-010",
+      "path": "benchmark_materials/CB-010/input.json",
+      "media_type": "application/json",
+      "sha256": "33906854b01f3a5fc8dddda1a1cf1bdf28f272aa4bf923d24791c562dad6690a",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-010",
+      "path": "benchmark_materials/CB-010/context.json",
+      "media_type": "application/json",
+      "sha256": "287537ed1abff9d0519b3dc9c32f4f26976a095b313134f786e627f4f0e38720",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-011",
+      "path": "benchmark_materials/CB-011/input.json",
+      "media_type": "application/json",
+      "sha256": "8d954fc40af498d02ae163cc2ad1db4670139f6275132f000f5de3e9991084bf",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-011",
+      "path": "benchmark_materials/CB-011/context.json",
+      "media_type": "application/json",
+      "sha256": "4a77c9cb000c57a12c7f9099786d473d22689dc422a8d09d3faad4aa19ac52ff",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-012",
+      "path": "benchmark_materials/CB-012/input.json",
+      "media_type": "application/json",
+      "sha256": "9396213edbaab3851ec026b8b46a85c588a0722c3c0097d4a870f2e08162614d",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-012",
+      "path": "benchmark_materials/CB-012/context.json",
+      "media_type": "application/json",
+      "sha256": "fb036bda1c084b7853e0192ea99bb32c0f84179fa798ae40df29a549104b78bb",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-013",
+      "path": "benchmark_materials/CB-013/input.json",
+      "media_type": "application/json",
+      "sha256": "b4076f7406548948852b7f2f193232f6a9773548dcedb4c379246181e1a01f9e",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-013",
+      "path": "benchmark_materials/CB-013/context.json",
+      "media_type": "application/json",
+      "sha256": "3ec1060529ea9996ca5efe78b20dd8d0c7f529245ab20478a7f1fac90c3a1745",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-014",
+      "path": "benchmark_materials/CB-014/input.json",
+      "media_type": "application/json",
+      "sha256": "cc17e05ebfaefcfe14f81a34db30de2e4648793b43de33f82785f062a566146c",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-014",
+      "path": "benchmark_materials/CB-014/context.json",
+      "media_type": "application/json",
+      "sha256": "a0ea321bf1b145c8d601171b61d04f843c6ed1e82f320e12dc2dd74a649b0fa5",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-015",
+      "path": "benchmark_materials/CB-015/input.json",
+      "media_type": "application/json",
+      "sha256": "0e9c46a079e133384a5cbe9fa5364576f3fbedb22aba807858f84709d26ca728",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-015",
+      "path": "benchmark_materials/CB-015/context.json",
+      "media_type": "application/json",
+      "sha256": "cc73eb67d97244b019900fbb2f454cfba92cfbe528af0802a6aeb57dc2ced496",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-016",
+      "path": "benchmark_materials/CB-016/input.json",
+      "media_type": "application/json",
+      "sha256": "4fa6fb479c5feff1721eed63204050bb9c1f2cb77fb879b8bc14b50d18b8fa70",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-016",
+      "path": "benchmark_materials/CB-016/context.json",
+      "media_type": "application/json",
+      "sha256": "8963a99c9cf789493e49b8289785479c5b15c30f0ca300cda7a4a15e1219f29d",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-017",
+      "path": "benchmark_materials/CB-017/input.json",
+      "media_type": "application/json",
+      "sha256": "feae0cf40958dd90e77d5455ba9b61e676dfe47c774642a5270b92e66c8dafe1",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-017",
+      "path": "benchmark_materials/CB-017/context.json",
+      "media_type": "application/json",
+      "sha256": "b7d93666ef9e23389371d52b90bf119787e054925cf22a9adc444b25bebe6185",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-018",
+      "path": "benchmark_materials/CB-018/input.json",
+      "media_type": "application/json",
+      "sha256": "c7de1214c1c2b7e8c26a9185e03b60690b371fc95cbea5e4135ac14dbd511666",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-018",
+      "path": "benchmark_materials/CB-018/context.json",
+      "media_type": "application/json",
+      "sha256": "a37bc71ed0330cad7c9ac7dc1ba1d58d19bf4db189b837541ad4843847f40f37",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-019",
+      "path": "benchmark_materials/CB-019/input.json",
+      "media_type": "application/json",
+      "sha256": "6cbae93eb8ab3b1c5c3c2f557edb11ee59fd9edd0a81d845171fcb6929585c63",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-019",
+      "path": "benchmark_materials/CB-019/context.json",
+      "media_type": "application/json",
+      "sha256": "2be8e3314cbe2627489df857bf4af43f672b3740baa1703d664a0ea907f86470",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-020",
+      "path": "benchmark_materials/CB-020/input.json",
+      "media_type": "application/json",
+      "sha256": "69583ef75a5178292a7b7e11764b1e4ff2e567f17f988fa8533edc0d95b7d399",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-020",
+      "path": "benchmark_materials/CB-020/context.json",
+      "media_type": "application/json",
+      "sha256": "3887c40ca96a1dae46c7c2dd0d8b1d30a729b9435063a39c2acb7027916aed97",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-021",
+      "path": "benchmark_materials/CB-021/input.json",
+      "media_type": "application/json",
+      "sha256": "6a352225c9aaa8c57adaabc39d868553eeadc61bbc9230d265a13f0648e0e823",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-021",
+      "path": "benchmark_materials/CB-021/context.json",
+      "media_type": "application/json",
+      "sha256": "85b2ed29dd854aa63007dc2c0b013ecd6123db669ade06c2b3ebaa6f59a873b7",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-022",
+      "path": "benchmark_materials/CB-022/input.json",
+      "media_type": "application/json",
+      "sha256": "a36db41017e1ac6dba6e0f534c1711a5f686b3133eb403911de5cc9f18e43f72",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-022",
+      "path": "benchmark_materials/CB-022/context.json",
+      "media_type": "application/json",
+      "sha256": "5c30f75a2d07ee79202622034340c0a21b5892437b7d56057aab505e9e001752",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-023",
+      "path": "benchmark_materials/CB-023/input.json",
+      "media_type": "application/json",
+      "sha256": "bd46d79784b6d678f2f6c1557cb66adfcf3594ef5bd9e0ced445721660fb42ca",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-023",
+      "path": "benchmark_materials/CB-023/context.json",
+      "media_type": "application/json",
+      "sha256": "68c0e3f8db32240843764f8ee26c5b5610a25d2deaaf59abf57a91867a45ca88",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-024",
+      "path": "benchmark_materials/CB-024/input.json",
+      "media_type": "application/json",
+      "sha256": "ecea5c5b80f523fb0871ecd6675a0519d561c9f8f80eea99f9543242eab98499",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-024",
+      "path": "benchmark_materials/CB-024/context.json",
+      "media_type": "application/json",
+      "sha256": "0b341d4a2a3092870c3adf11ee4b7285ee75340f727cc090c59d6da20ff3d2d9",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-025",
+      "path": "benchmark_materials/CB-025/input.json",
+      "media_type": "application/json",
+      "sha256": "e056ffc657b48ba15fa0d6e87c9623c56848c699a1c0224643d5684292858443",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-025",
+      "path": "benchmark_materials/CB-025/context.json",
+      "media_type": "application/json",
+      "sha256": "000be836f1aafa4db6e06741086eae7c098cd57e9acef82f3b7a7d473a5f83f3",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-026",
+      "path": "benchmark_materials/CB-026/input.json",
+      "media_type": "application/json",
+      "sha256": "a5216db326be857255340be5d0d688aa303847c36c725f2a0f21423e7c5029b6",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-026",
+      "path": "benchmark_materials/CB-026/context.json",
+      "media_type": "application/json",
+      "sha256": "13252b0376d99556934cad9e0b1a45c3bb3f488b368b5d31269a9f61b6016b77",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-027",
+      "path": "benchmark_materials/CB-027/input.json",
+      "media_type": "application/json",
+      "sha256": "e98d4d6958d1ceb90d49e4ff2c59bcfa53f5d8c271c81d62a48cd6fcb306f048",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-027",
+      "path": "benchmark_materials/CB-027/context.json",
+      "media_type": "application/json",
+      "sha256": "b9fae970dc5957dffa0b1d8077970fc1333cdb0cd54e535a26dceb19b772092c",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-028",
+      "path": "benchmark_materials/CB-028/input.json",
+      "media_type": "application/json",
+      "sha256": "93e788c470ad7f06e28b4da568a3e8c068edf79e77a9ec80e93cc2fd65d6b3e4",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-028",
+      "path": "benchmark_materials/CB-028/context.json",
+      "media_type": "application/json",
+      "sha256": "56d5fdd000d53b304a91572a220f70e428134940889033c4b088264efb71e390",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-029",
+      "path": "benchmark_materials/CB-029/input.json",
+      "media_type": "application/json",
+      "sha256": "3c0b609f50a264d714883eefbba153552ebd2f349334d3730d1988e701ac9e2d",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-029",
+      "path": "benchmark_materials/CB-029/context.json",
+      "media_type": "application/json",
+      "sha256": "9036aa3cbc28b862148e3ad8fb63b41fd5d634acaa13a76dcc6cecf24549a533",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-030",
+      "path": "benchmark_materials/CB-030/input.json",
+      "media_type": "application/json",
+      "sha256": "bb9624acd1b7d84d15d2388ea0b0c28de4e63dc40a213192526d36cad2719a34",
+      "role": "input",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    },
+    {
+      "case_id": "CB-030",
+      "path": "benchmark_materials/CB-030/context.json",
+      "media_type": "application/json",
+      "sha256": "610ae43de311eeb97f5627f771ad954fa5a4ff553b86c16e5bdec011b022c376",
+      "role": "context",
+      "input_channel": "wechat_cloud_function_payload",
+      "representation": "structured_payload",
+      "data_origin": "synthetic"
+    }
+  ]
+}
